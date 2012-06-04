@@ -53,13 +53,10 @@ int main(int argc, char **argv) {
  fork_done:
   ID = rank;
   P("Initializing child %u", rank);
-  if (argc > 3 && num_procs == 2) {
-    if (ID) {
-      set_cpu(2);
-    }
-    else {
-      set_cpu(0);
-    }
+  if (argc > 3) {
+    int on = atoi(argv[3 + ID]);
+    P("placed on core %d", on);
+    set_cpu(on);
   }
   else {
     set_cpu(ID);

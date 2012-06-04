@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
 #ifdef USE_MEMCPY
       msg.w0 = nm1;
 #ifdef BLOCKING
-      ssmp_send(to, &msg, 24);
+      ssmp_sendb(to, &msg, 24);
 #else
       ssmp_send(to, &msg, 24);
 #endif

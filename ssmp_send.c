@@ -14,11 +14,12 @@ static ssmp_msg_t *tmpm;
 /* ------------------------------------------------------------------------------- */
 
 //#define tmpm ssmp_send_buf[to]
+
 inline void ssmp_send(int to, ssmp_msg_t *msg, int length) {
   tmpm = ssmp_send_buf[to];
   while(tmpm->state);      
 
-  memcpy(tmpm, msg, length);
+  CPY_LLINTS(tmpm, msg, length);
   tmpm->state = 1;
 
   PD("sent to %d", to);
@@ -28,7 +29,7 @@ inline void ssmp_sendb(int to, ssmp_msg_t *msg, int length) {
   
   while(ssmp_send_buf[to]->state);      
 
-  memcpy(ssmp_send_buf[to], msg, length);
+  CPY_LLINTS(ssmp_send_buf[to], msg, length);
 
   ssmp_send_buf[to]->state = 1;
   while(ssmp_send_buf[to]->state);
@@ -40,7 +41,7 @@ inline int ssmp_send_try(int to, ssmp_msg_t *msg, int length) {
   
   if (!ssmp_send_buf[to]->state) {
 
-    memcpy(ssmp_send_buf[to], msg, length);
+    CPY_LLINTS(ssmp_send_buf[to], msg, length);
 
     ssmp_send_buf[to]->state = 1;
 

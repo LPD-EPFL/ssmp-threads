@@ -25,6 +25,24 @@
 #define PD(args...) 
 #endif
 
+#define USE_MEMCPY
+
+#ifdef USE_MEMCPY
+#define CPY_LLINTS(to, from, length)		\
+  memcpy(to, from, length)
+#else
+#define SIZE_LLI sizeof(long long int)
+#define CPY_LLINTS(to, from, num)		\
+{						\
+  long long int *f = (long long int *) (from);	\
+  long long int *t = (long long int *) (to);	\
+  int lli;					\
+  for (lli = 0; lli < (num)/SIZE_LLI; lli++) {	\
+    t[lli] = f[lli];				\
+  }						\
+}
+#endif /* USE_MEMCPY */
+
 
 /* ------------------------------------------------------------------------------- */
 /* types */

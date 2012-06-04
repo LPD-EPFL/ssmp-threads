@@ -18,7 +18,7 @@ inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length) {
   PD("recv from %d\n", from);
   while(!tmpm->state);
 
-  memcpy(msg, tmpm, length);
+  CPY_LLINTS(msg, tmpm, length);
   tmpm->state = 0;
 
   //  msg->sender = from; //do not set the sender of the msg since we know him :)
@@ -30,7 +30,7 @@ inline int ssmp_recv_from_try(int from, ssmp_msg_t *msg, int length) {
   PD("recv from %d\n", from);
   if (ssmp_recv_buf[from]->state) {
 
-    memcpy(msg, ssmp_recv_buf[from], length);
+    CPY_LLINTS(msg, ssmp_recv_buf[from], length);
 
     msg->sender = from;
     ssmp_recv_buf[from]->state = 0;
@@ -77,7 +77,7 @@ inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length)
     for (from = 0; from < cbuf->num_ues; from++) {
 
       if (cbuf->buf[from]->state) {
-	memcpy(msg, cbuf->buf[from], length);
+	CPY_LLINTS(msg, cbuf->buf[from], length);
 
 	msg->sender = cbuf->from[from];
 	cbuf->buf[from]->state = 0;
