@@ -1,8 +1,8 @@
 #include "ssmp.h"
 
-extern ssmp_msg_t *ssmp_mem;
 extern ssmp_msg_t **ssmp_recv_buf;
 extern ssmp_msg_t **ssmp_send_buf;
+extern ssmp_chunk_t **ssmp_chunk_buf;
 extern int ssmp_num_ues_;
 extern int ssmp_id_;
 extern int last_recv_from;
@@ -19,8 +19,37 @@ inline void ssmp_send(int to, ssmp_msg_t *msg, int length) {
   tmpm = ssmp_send_buf[to];
   while(tmpm->state);      
 
+  int dummy = msg->w0;
   CPY_LLINTS(tmpm, msg, length);
+
   tmpm->state = 1;
+
+  PD("sent to %d", to);
+}
+
+inline void ssmp_send_big(int to, void *data, int length) {
+  int last_chunk = length % SSMP_CHUNK_SIZE;
+  int num_chunks = length / SSMP_CHUNK_SIZE;
+
+  while(num_chunks--) {
+
+    while(ssmp_chunk_buf[ssmp_id_]->state);
+
+    memcpy(ssmp_chunk_buf[ssmp_id_], data, SSMP_CHUNK_SIZE);
+    data = ((char *) data) + SSMP_CHUNK_SIZE;
+
+    ssmp_chunk_buf[ssmp_id_]->state = 1;
+  }
+
+  if (!last_chunk) {
+    return;
+  }
+
+  while(ssmp_chunk_buf[ssmp_id_]->state);
+
+  memcpy(ssmp_chunk_buf[ssmp_id_], data, last_chunk);
+
+  ssmp_chunk_buf[ssmp_id_]->state = 1;
 
   PD("sent to %d", to);
 }
