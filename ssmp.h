@@ -51,7 +51,7 @@
 typedef int ssmp_chk_t; /*used for the checkpoints*/
 
 /*msg type: contains 15 words of data and 1 word flag*/
-typedef struct {
+typedef struct ssmp_msg {
   int w0;
   int w1;
   int w2;
@@ -59,7 +59,7 @@ typedef struct {
   int w4;
   int w5;
   int w6;
-  int f[8];
+   int f[8];
 union {
     int state;
     int sender;
@@ -106,6 +106,7 @@ extern void ssmp_term(void);
 /* blocking send length words to to */
 /* blocking in the sense that the data are copied to the receiver's buffer */
 extern inline void ssmp_send(int to, ssmp_msg_t *msg, int length);
+extern inline void ssmp_send_sig(int to);
 extern inline void ssmp_send_big(int to, void *data, int length);
 
 /* blocking until the receivers reads the data */
@@ -153,6 +154,7 @@ extern inline void ssmp_broadcast_par(int w0, int w1, int w2, int w3); //XXX: fi
 
 /* blocking receive from process from length bytes */
 extern inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length);
+extern inline void ssmp_recv_from_sig(int from);
 extern inline void ssmp_recv_from_big(int from, void *data, int length);
 
 /* blocking receive from process from 6 bytes */

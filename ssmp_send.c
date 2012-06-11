@@ -27,6 +27,15 @@ inline void ssmp_send(int to, ssmp_msg_t *msg, int length) {
   PD("sent to %d", to);
 }
 
+inline void ssmp_send_sig(int to) {
+  tmpm = ssmp_send_buf[to];
+  while(tmpm->state);      
+  tmpm->state = 1;
+
+  PD("sent to %d", to);
+}
+
+
 inline void ssmp_send_big(int to, void *data, int length) {
   int last_chunk = length % SSMP_CHUNK_SIZE;
   int num_chunks = length / SSMP_CHUNK_SIZE;

@@ -21,6 +21,7 @@
 
 #define COLOR_BUF
 #define USE_MEMCPY
+//#define USE_SIGNAL
 //#define BLOCKING
 
 int num_procs = 2;
@@ -102,7 +103,11 @@ int main(int argc, char **argv) {
 #ifdef BLOCKING
       ssmp_sendb(msg.sender, &msg, 8);
 #else
+#ifdef USE_SIGNAL
+      ssmp_send_sig(msg.sender);
+#else
       ssmp_send(msg.sender, &msg, 8);
+#endif
 #endif
 #else 
       ssmp_send6(msg.sender, msg.w0, msg.w1, msg.w2, msg.w3, msg.w4, msg.w5);
@@ -131,7 +136,11 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef USE_MEMCPY
+#ifdef USE_SIGNAL
+      ssmp_recv_from_sig(to);
+#else
       ssmp_recv_from(to, &msg, 24);
+#endif
 #else
       ssmp_recv_from6(to, &msg);
 #endif

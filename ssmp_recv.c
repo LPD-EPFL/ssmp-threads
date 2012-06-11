@@ -26,6 +26,14 @@ inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length) {
   PD("recved from %d\n", from);
 }
 
+inline void ssmp_recv_from_sig(int from) {
+  tmpm = ssmp_recv_buf[from];
+  while(!tmpm->state);
+  tmpm->state = 0;
+
+  PD("recved from %d\n", from);
+}
+
 inline void ssmp_recv_from_big(int from, void *data, int length) {
   int last_chunk = length % SSMP_CHUNK_SIZE;
   int num_chunks = length / SSMP_CHUNK_SIZE;
