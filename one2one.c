@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
 
   ssmp_barrier_wait(1);
   int ex = -1;
-  ssmp_send(ssmp_id() - 1, (ssmp_msg_t *) &ex, sizeof(int));
+  ssmp_send(ssmp_id() - 1, (ssmp_msg_t *) &ex, sizeof(long long int));
 
 
   ssmp_term();

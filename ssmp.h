@@ -26,20 +26,27 @@
 #define PD(args...) 
 #endif
 
-#define USE_MEMCPY
+#define USE_INT
 
 #ifdef USE_MEMCPY
 #define CPY_LLINTS(to, from, length)		\
   memcpy(to, from, length)
+#elif defined(USE_INT)
+#define SIZE_I sizeof(int)
+#define CPY_LLINTS(to, from, num)		\
+{						\
+  int i;					\
+  for (i = 0; i < (num)/SIZE_I; i++) {	\
+    to->word[i] = from->word[i];		\
+  }						\
+}
 #else
 #define SIZE_LLI sizeof(long long int)
 #define CPY_LLINTS(to, from, num)		\
 {						\
-  long long int *f = (long long int *) (from);	\
-  long long int *t = (long long int *) (to);	\
   int lli;					\
   for (lli = 0; lli < (num)/SIZE_LLI; lli++) {	\
-    t[lli] = f[lli];				\
+    to->giant[lli] = from->giant[lli];		\
   }						\
 }
 #endif /* USE_MEMCPY */
@@ -51,15 +58,26 @@
 typedef int ssmp_chk_t; /*used for the checkpoints*/
 
 /*msg type: contains 15 words of data and 1 word flag*/
-typedef struct {
-  int w0;
-  int w1;
-  int w2;
-  int w3;
-  int w4;
-  int w5;
-  int w6;
-  int f[8];
+typedef struct ssmp_msg {
+  union {
+    struct {
+      int w0;
+      int w1;
+      int w2;
+      int w3;
+      int w4;
+      int w5;
+      int w6;
+      int f[8];
+    };
+    
+    int word[15];
+    struct {
+      long long int giant[7];
+      int lword;
+    };
+  };
+
 union {
     int state;
     int sender;
@@ -106,6 +124,7 @@ extern void ssmp_term(void);
 /* blocking send length words to to */
 /* blocking in the sense that the data are copied to the receiver's buffer */
 extern inline void ssmp_send(int to, ssmp_msg_t *msg, int length);
+extern inline void ssmp_send_sig(int to);
 extern inline void ssmp_send_big(int to, void *data, int length);
 
 /* blocking until the receivers reads the data */
@@ -153,6 +172,7 @@ extern inline void ssmp_broadcast_par(int w0, int w1, int w2, int w3); //XXX: fi
 
 /* blocking receive from process from length bytes */
 extern inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length);
+extern inline void ssmp_recv_from_sig(int from);
 extern inline void ssmp_recv_from_big(int from, void *data, int length);
 
 /* blocking receive from process from 6 bytes */
