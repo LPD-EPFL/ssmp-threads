@@ -38,6 +38,18 @@ one2one: libssmp.a one2one.o common.h
 one2one.o:	one2one.c ssmp.c
 		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
+memstresh: libssmp.a memstresh.o common.h
+	gcc $(VER_FLAGS) -o memstresh memstresh.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
+
+memstresh.o:	memstresh.c ssmp.c
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c memstresh.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+memstreshmp: libssmp.a memstreshmp.o common.h
+	gcc $(VER_FLAGS) -o memstreshmp memstreshmp.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
+
+memstreshmp.o:	memstreshmp.c ssmp.c
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c memstreshmp.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
 one2onebig: libssmp.a one2onebig.o common.h
 	gcc $(VER_FLAGS) -o one2onebig one2onebig.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
 
