@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     }
     else {
       ssmp_msg_t msg;
-      ssmp_recv_from(0, &msg);
+      ssmp_recv_from(0, &msg, 4);
       barr = msg.w0;
       ssmp_barrier_wait(barr);
     }
