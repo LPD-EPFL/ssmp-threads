@@ -26,6 +26,18 @@ inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length) {
   PD("recved from %d\n", from);
 }
 
+inline ssmp_msg_t * ssmp_recv_fromp(int from) {
+  tmpm = ssmp_recv_buf[from];
+  PD("recv from %d\n", from);
+  while(!tmpm->state);
+
+  return tmpm;
+}
+
+inline void ssmp_recv_rls(int from) {
+  ssmp_recv_buf[from]->state = 0;
+}
+
 inline void ssmp_recv_from_sig(int from) {
   tmpm = ssmp_recv_buf[from];
   while(!tmpm->state);
