@@ -77,16 +77,14 @@ int main(int argc, char **argv) {
     P("service core!");
 
     int from = ID+1;
-    
+    int v = 1;
     while(1) {
       msg = ssmp_recv_fromp(from);
-      int v = msg->w0;
+      v = msg->w0;
       ssmp_recv_rls(from);
+      ssmp_send(from, &msg, 24);
       if (v < 0) {
-	int co;
-	for (co = 0; co < ssmp_num_ues(); co++) {
-	  //P("from[%d] = %d", co, from[co]);
-	}
+	
 	P("exiting..");
 	exit(0);
       }
@@ -102,7 +100,8 @@ int main(int argc, char **argv) {
     while (nm1--) {
       msg.w0 = nm1;
       ssmp_send(to, &msg, 24);
-      //      ssmp_recv_from(to, &msg);
+      ssmp_recv_fromp(to);
+      ssmp_recv_rls(to);
     }
 
 
