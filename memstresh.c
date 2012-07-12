@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
   ssmp_mem_init(ID, num_procs);
   P("Initialized child %u", rank);
 
-  srand(ID * (int)(10000*wtime()));
+  srand(ID * (int)(1000000*wtime()));
 
   ssmp_barrier_wait(0);
   long long int nm1 = nm;
@@ -71,18 +71,32 @@ int main(int argc, char **argv) {
   double _start = wtime();
   ticks _start_ticks = getticks();
 
-  int i;  
+  int i, s;  
   while(nm1--) {
-    for (i = 0; i < clines; i++) {
-      cls[i].w2 = nm1;
+    switch(clines) {
+    case 8:
+      cls[7].w0 = nm1;
+      cls[0].w1 = nm1;
+      cls[3].w3 = nm1;
+      cls[2].w2 = nm1;
+    case 4:
+      cls[1].w3 = nm1;
+      cls[4].w1 = nm1;
+    case 2:
+      cls[5].w6 = nm1;
+    case 1:
+      cls[6].w3 = nm1;
     }
   }
+
+
   
 
   ticks _end_ticks = getticks();
   double _end = wtime();
 
   double _time = _end - _start;
+  P("%d", s);
   ticks _ticks = _end_ticks - _start_ticks;
   ticks _ticksm =(ticks) ((double)_ticks / nm);
   double lat = (double) (1000*1000*1000*_time) / nm;
