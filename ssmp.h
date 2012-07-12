@@ -12,7 +12,7 @@
 #include <string.h>
 #include <sched.h>
 #include <inttypes.h>
-
+#include <emmintrin.h>
 /* ------------------------------------------------------------------------------- */
 /* defines */
 /* ------------------------------------------------------------------------------- */
@@ -26,7 +26,7 @@
 #define PD(args...) 
 #endif
 
-#define USE_INT
+#define USE_MEMCPY
 
 #ifdef USE_MEMCPY
 #define CPY_LLINTS(to, from, length)		\
@@ -59,29 +59,21 @@ typedef int ssmp_chk_t; /*used for the checkpoints*/
 
 /*msg type: contains 15 words of data and 1 word flag*/
 typedef struct ssmp_msg {
-  union {
-    struct {
-      int w0;
-      int w1;
-      int w2;
-      int w3;
-      int w4;
-      int w5;
-      int w6;
-      int f[8];
-    };
-    
-    int word[15];
-    struct {
-      long long int giant[7];
-      int lword;
-    };
-  };
-
-union {
+  int w0;
+  int w1;
+  int w2;
+  int w3;
+  int w4;
+  int w5;
+  int w6;
+  int f[7];
+  /*  union {
     int state;
     int sender;
-  };
+    }*/
+
+  unsigned int sender;
+  volatile unsigned int state;
 } ssmp_msg_t;
 
 typedef struct {
@@ -172,6 +164,8 @@ extern inline void ssmp_broadcast_par(int w0, int w1, int w2, int w3); //XXX: fi
 
 /* blocking receive from process from length bytes */
 extern inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length);
+extern inline ssmp_msg_t * ssmp_recv_fromp(int from);
+extern inline void ssmp_recv_rls(int from);
 extern inline void ssmp_recv_from_sig(int from);
 extern inline void ssmp_recv_from_big(int from, void *data, int length);
 
