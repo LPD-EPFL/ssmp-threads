@@ -19,6 +19,12 @@
 #define SSMP_NUM_BARRIERS 16 /*number of available barriers*/
 #define SSMP_CHUNK_SIZE 1020
 
+#define BUF_EMPTY 0
+#define BUF_MESSG 1
+
+#define USE_ATOMIC
+
+
 #define SP(args...) printf("[%d] ", ssmp_id_); printf(args); printf("\n"); fflush(stdout)
 #ifdef SSMP_DEBUG
 #define PD(args...) printf("[%d] ", ssmp_id_); printf(args); printf("\n"); fflush(stdout)
@@ -66,14 +72,14 @@ typedef struct ssmp_msg {
   int w4;
   int w5;
   int w6;
-  int f[7];
-  /*  union {
-    int state;
-    int sender;
-    }*/
+  int f[8];
+  union {
+    unsigned int state;
+    unsigned int sender;
+  };
 
-  unsigned int sender;
-  volatile unsigned int state;
+  //  unsigned int sender;
+  //  volatile unsigned int state;
 } ssmp_msg_t;
 
 typedef struct {

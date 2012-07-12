@@ -17,14 +17,16 @@ static ssmp_msg_t *tmpm;
 
 inline void ssmp_send(int to, ssmp_msg_t *msg, int length) {
   tmpm = ssmp_send_buf[to];
-  while(tmpm->state);      
+#ifdef USE_ATOMIC
+  while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_EMPTY)) {
+    _mm_pause();
+  }
+#else 
+  while(tmpm->state == BUF_MESSG);
+#endif
 
-  int dummy = msg->w0;
   CPY_LLINTS(tmpm, msg, length);
-
-  tmpm->state = 1;
-
-  PD("sent to %d", to);
+  tmpm->state = BUF_MESSG;
 }
 
 inline void ssmp_send_sig(int to) {

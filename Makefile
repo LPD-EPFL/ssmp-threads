@@ -33,10 +33,10 @@ libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h
 	rm -f *.o	
 
 one2one: libssmp.a one2one.o common.h
-	gcc $(VER_FLAGS) -o one2one one2one.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
+	gcc $(VER_FLAGS) -o one2one one2one.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) -O3
 
 one2one.o:	one2one.c ssmp.c
-		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) -O3
 
 one2one_manual: libssmp.a one2one_manual.o common.h
 	gcc $(VER_FLAGS) -o one2one_manual one2one_manual.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) -O3

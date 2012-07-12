@@ -15,11 +15,16 @@ static ssmp_msg_t *tmpm;
 
 inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length) {
   tmpm = ssmp_recv_buf[from];
-  PD("recv from %d\n", from);
-  while(!tmpm->state);
+#ifdef USE_ATOMIC  
+  while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_MESSG, BUF_MESSG)) {
+    _mm_pause();
+  }
+#else
+  while(tmpm->state == BUF_EMPTY);
+#endif
 
   CPY_LLINTS(msg, tmpm, length);
-  tmpm->state = 0;
+  tmpm->state = BUF_EMPTY;
 
   //  msg->sender = from; //do not set the sender of the msg since we know him :)
 
@@ -123,11 +128,15 @@ inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length)
     //XXX: maybe have a last_recv_from field
     for (from = 0; from < cbuf->num_ues; from++) {
 
+#ifdef USE_ATOMIC  
+      if(__sync_bool_compare_and_swap(&cbuf->buf[from]->state, BUF_MESSG, BUF_MESSG)) {
+#else
       if (cbuf->buf[from]->state) {
+#endif
 	CPY_LLINTS(msg, cbuf->buf[from], length);
 
 	msg->sender = cbuf->from[from];
-	cbuf->buf[from]->state = 0;
+	cbuf->buf[from]->state = BUF_EMPTY;
 	return;
       }
     }
