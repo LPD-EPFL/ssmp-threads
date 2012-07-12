@@ -38,8 +38,14 @@ one2one: libssmp.a one2one.o common.h
 one2one.o:	one2one.c ssmp.c
 		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
+one2one_manual: libssmp.a one2one_manual.o common.h
+	gcc $(VER_FLAGS) -o one2one_manual one2one_manual.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) -O3
+
+one2one_manual.o:	one2one_manual.c ssmp.c
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one_manual.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) -O3
+
 one2onep: libssmp.a one2onep.o common.h
-	gcc $(VER_FLAGS) -o one2onep one2onep.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
+	gcc $(VER_FLAGS) -o one2onep one2onep.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
 
 one2onep.o:	one2onep.c ssmp.c
 		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2onep.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
