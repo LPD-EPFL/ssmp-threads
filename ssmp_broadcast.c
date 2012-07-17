@@ -26,12 +26,14 @@ inline void ssmp_broadcast(ssmp_msg_t *msg, int length) {
 
 inline void ssmp_broadcast1(int w0) { 
   int core;
+  ssmp_msg_t msg;
+  msg.w0 = w0;
   for (core = 0; core < ssmp_num_ues_; core++) {
     if (core == ssmp_id_) {
       continue;
     }
     
-    ssmp_send1(core, w0);
+    ssmp_send(core, &msg, sizeof(int));
   }
 }
 
