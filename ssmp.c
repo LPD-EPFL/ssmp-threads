@@ -87,7 +87,6 @@ void ssmp_init(int num_procs)
   }
   ssmp_barrier_init(1, 0xFFFFFFFFFFFFFFFF, color_app);
 
-
 }
 
 void ssmp_mem_init(int id, int num_ues) {
@@ -325,6 +324,13 @@ inline double wtime(void)
   return (double)t.tv_sec + ((double)t.tv_usec)/1000000.0;
 }
 
+inline void wait_cycles(unsigned int cycles) {
+  cycles /= 6;
+  while (cycles--) {
+      _mm_pause();
+  }
+}
+
 void set_cpu(int cpu) {
   cpu_set_t mask;
   CPU_ZERO(&mask);
@@ -334,6 +340,9 @@ void set_cpu(int cpu) {
 	   strerror(errno));
     exit(3);
   }
+  
+  SP("\t\t\tcore %02d -> tnuma_set_preferred(%d)", cpu, cpu/6);
+  numa_set_preferred(cpu/6);  
 }
 
 #if defined(__i386__)
@@ -359,3 +368,4 @@ inline int ssmp_id() {
 inline int ssmp_num_ues() {
   return ssmp_num_ues_;
 }
+
