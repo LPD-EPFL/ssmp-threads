@@ -56,17 +56,15 @@ int main(int argc, char **argv) {
 
  fork_done:
   ID = rank;
-  P("Initializing child %u", rank);
   set_cpu(ID);
   ssmp_mem_init(ID, num_procs);
-  P("Initialized child %u", rank);
 
-#ifdef COLOR_BUF
-  ssmp_color_buf_t *cbuf;
-  cbuf = (ssmp_color_buf_t *) malloc(sizeof(ssmp_color_buf_t));
-  assert(cbuf != NULL);
-  ssmp_color_buf_init(cbuf, color_app);
-#endif
+  ssmp_color_buf_t *cbuf = NULL;
+  if (ID % 2 == 0) {
+    cbuf = (ssmp_color_buf_t *) malloc(sizeof(ssmp_color_buf_t));
+    assert(cbuf != NULL);
+    ssmp_color_buf_init(cbuf, color_app);
+  }
 
   ssmp_msg_t *msg;
   msg = (ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
@@ -82,35 +80,31 @@ int main(int argc, char **argv) {
   if (ID % 2 == 0) {
     while(1) {
       ssmp_recv_color(cbuf, msg, 24);
-      //ssmp_recv_fromm(from, msg);
-      //ssmp_recv_from(from, msg, 24);
+
       if (msg->w0 < 0) {
 	P("exiting ..");
 	exit(0);
       }
-      //ssmp_send(from, msg, 24);
-      //      ssmp_sendm(from, msg)
-      //      ssmp_send(msg->sender, msg, 8);
-      ssmp_sendm(msg->sender, msg);
+      ssmp_send(msg->sender, msg, 8);
+      //ssmp_sendm(msg->sender, msg);
     }
   }
   else {
     unsigned int to = ID-1;
     long long int nm1 = nm;
-    //    to = ID - 1;
     while (nm1--) {
       to = (to + 2) % num_procs;
 
       msg->w0 = nm1;
-      //ssmp_send(to, msg, 24);
-      ssmp_sendm(to, msg);
+      ssmp_send(to, msg, 24);
+      //ssmp_sendm(to, msg);
 
-      //ssmp_recv_from(to, msg, 24);
-      ssmp_recv_fromm(to, msg);
+      ssmp_recv_from(to, msg, 24);
+      //ssmp_recv_fromm(to, msg);
 
-      /*      if (msg->w0 != nm1) {
+      if (msg->w0 != nm1) {
 	P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
-	}*/
+      }
     }
   }
 

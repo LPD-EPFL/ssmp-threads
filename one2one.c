@@ -88,9 +88,9 @@ int main(int argc, char **argv) {
     int from = ID+1;
     
     while(1) {
-      //      ssmp_recv_from(from, msgp, 24);
-      ssmp_recv_fromm(from, msgp);
-      ssmp_sendm(from, msgp);
+      ssmp_recv_from(from, msgp, 24);
+      //ssmp_recv_fromm(from, msgp);
+      //      ssmp_sendm(from, msgp);
       if (msgp->w0 < 0) {
 	P("exiting..");
 	exit(0);
@@ -104,9 +104,9 @@ int main(int argc, char **argv) {
     
     while (nm1--) {
       msgp->w0 = nm1;
-      //  ssmp_send(to, msgp, 24);
-      ssmp_sendm(to, msgp);
-      ssmp_recv_fromm(to, msgp);
+      ssmp_send(to, msgp, 24);
+      //ssmp_sendm(to, msgp);
+      //      ssmp_recv_fromm(to, msgp);
     }
 
 

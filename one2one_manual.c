@@ -71,11 +71,6 @@ int main(int argc, char **argv) {
 
   ssmp_init(num_procs);
 
-  ssmp_msg_t *comb = (ssmp_msg_t *) mmap(0,2 * sizeof(ssmp_msg_t),PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);
-  assert(comb != NULL);
-  comb[0].state = NO_MSG;
-  comb[1].state = NO_MSG;
-
   int rank;
   for (rank = 1; rank < num_procs; rank++) {
     P("Forking child %d", rank);
@@ -100,7 +95,53 @@ int main(int argc, char **argv) {
   }
   ssmp_mem_init(ID, num_procs);
 
+  if (ssmp_id() > 0) {
+    ssmp_barrier_wait(0);
+  }
+
+  int size = 2 * sizeof(ssmp_msg_t);
+
+  P("opening after forking");
+  char keyF[100];
+  sprintf(keyF,"/ssmp_to00_from01");
+  int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
+  if (ssmpfd<0) {
+    if (errno != EEXIST) {
+      perror("In shm_open");
+      exit(1);
+    }
+    else {
+      P("%s was open ;)", keyF);
+    }
+
+    ssmpfd = shm_open(keyF, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG);
+    if (ssmpfd<0) {
+      perror("In shm_open");
+      exit(1);
+    }
+  }
+  else {
+    P("%s newly openned", keyF);
+    if (ftruncate(ssmpfd, size) < 0) {
+      perror("ftruncate failed\n");
+      exit(1);
+    }
+  }
+
+  ssmp_msg_t * comb = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
+  if (comb == NULL || (unsigned int) comb == 0xFFFFFFFF) {
+    perror("comb = NULL\n");
+    exit(134);
+  }
+
+  if (ssmp_id() == 0) {
+    ssmp_barrier_wait(0);
+  }
   ssmp_barrier_wait(0);
+
+
+
+
 
   double _start = wtime();
   ticks _start_ticks = getticks();
@@ -168,8 +209,7 @@ int main(int argc, char **argv) {
     }
   }
 
- no_msging:
-  msg.w0 = 0;
+
   ticks _end_ticks = getticks();
   double _end = wtime();
 
@@ -188,10 +228,12 @@ int main(int argc, char **argv) {
 
 
 
+
+
   ssmp_barrier_wait(1);
 
   P("avg times\t= %0.3f", ((double)ttimes)/nm);
-
+  shm_unlink(keyF);
   ssmp_term();
   return 0;
 }
