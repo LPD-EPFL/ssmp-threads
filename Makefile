@@ -1,9 +1,9 @@
 ifeq ($(P),0) #give P=0 to compile with debug info
 DEBUG_CFLAGS=-ggdb -Wall -g  -fno-inline #-pg
-PERF_CLFAGS= -lnuma 
+PERF_CLFAGS= -lnuma -O3
 else
 DEBUG_CFLAGS=-Wall
-PERF_CLFAGS= -lnuma 
+PERF_CLFAGS= -lnuma -O3
 endif
 
 
