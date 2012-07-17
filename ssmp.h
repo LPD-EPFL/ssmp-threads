@@ -13,6 +13,7 @@
 #include <sched.h>
 #include <inttypes.h>
 #include <emmintrin.h>
+#include <numa.h>
 /* ------------------------------------------------------------------------------- */
 /* defines */
 /* ------------------------------------------------------------------------------- */
@@ -21,6 +22,7 @@
 
 #define BUF_EMPTY 0
 #define BUF_MESSG 1
+#define BUF_LOCKD 2
 
 #define USE_ATOMIC
 
@@ -32,30 +34,79 @@
 #define PD(args...) 
 #endif
 
-#define USE_MEMCPY
+#define USE_MEMCPY_
 
 #ifdef USE_MEMCPY
 #define CPY_LLINTS(to, from, length)		\
   memcpy(to, from, length)
-#elif defined(USE_INT)
-#define SIZE_I sizeof(int)
-#define CPY_LLINTS(to, from, num)		\
-{						\
-  int i;					\
-  for (i = 0; i < (num)/SIZE_I; i++) {	\
-    to->word[i] = from->word[i];		\
-  }						\
-}
 #else
-#define SIZE_LLI sizeof(long long int)
 #define CPY_LLINTS(to, from, num)		\
-{						\
-  int lli;					\
-  for (lli = 0; lli < (num)/SIZE_LLI; lli++) {	\
-    to->giant[lli] = from->giant[lli];		\
-  }						\
-}
+  switch (num/sizeof(int)) {			\
+  case 1:					\
+    to->w0 = from->w0;				\
+    break;					\
+  case 2:					\
+    to->w0 = from->w0;				\
+    to->w1 = from->w1;				\
+    break;					\
+  case 3:					\
+    to->w0 = from->w0;				\
+    to->w1 = from->w1;				\
+    to->w2 = from->w2;				\
+    break;					\
+  case 4:					\
+    to->w0 = from->w0;				\
+    to->w1 = from->w1;				\
+    to->w2 = from->w2;				\
+    to->w3 = from->w3;				\
+    break;					\
+  case 5:					\
+    to->w0 = from->w0;				\
+    to->w1 = from->w1;				\
+    to->w2 = from->w2;				\
+    to->w3 = from->w3;				\
+    to->w4 = from->w4;				\
+    break;					\
+  case 6:					\
+    to->w0 = from->w0;				\
+    to->w1 = from->w1;				\
+    to->w2 = from->w2;				\
+    to->w3 = from->w3;				\
+    to->w4 = from->w4;				\
+    to->w5 = from->w5;				\
+    break;					\
+  default:					\
+    memcpy(to, from, sizeof(int)*num);		\
+  }
 #endif /* USE_MEMCPY */
+
+#define WAIT_TIME 66
+#define ssmp_recv_fromm(from, msg)					\
+  ssmp_msg_t *tmpmr = ssmp_recv_buf[from];				\
+  while (!__sync_bool_compare_and_swap(&tmpmr->state, BUF_MESSG, BUF_LOCKD)) { \
+    wait_cycles(WAIT_TIME);						\
+  }									\
+  msg->w0 = tmpmr->w0;							\
+  msg->w1 = tmpmr->w1;							\
+  msg->w2 = tmpmr->w2;							\
+  msg->w3 = tmpmr->w3;							\
+  msg->w4 = tmpmr->w4;							\
+  msg->w5 = tmpmr->w5;							\
+  tmpmr->state = BUF_EMPTY;
+
+#define ssmp_sendm(to, msg)						\
+  ssmp_msg_t *tmpm = tmpm = ssmp_send_buf[to];				\
+  while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_LOCKD)) { \
+    wait_cycles(WAIT_TIME);						\
+  }									\
+  tmpm->w0 = msg->w0;							\
+  tmpm->w1 = msg->w1;							\
+  tmpm->w2 = msg->w2;							\
+  tmpm->w3 = msg->w3;							\
+  tmpm->w4 = msg->w4;							\
+  tmpm->w5 = msg->w5;							\
+  tmpm->state = BUF_MESSG;
+
 
 
 /* ------------------------------------------------------------------------------- */
@@ -102,6 +153,9 @@ typedef struct {
   ssmp_chk_t * checkpoints; /*the checkpoints array used for sync*/
   unsigned int version; /*the current version of the barrier, used to make a barrier reusable*/
 } ssmp_barrier_t;
+
+extern ssmp_msg_t **ssmp_recv_buf;
+extern ssmp_msg_t **ssmp_send_buf;
 
 
 /* ------------------------------------------------------------------------------- */
@@ -222,10 +276,12 @@ extern inline void ssmp_barrier_wait(int barrier_num);
 /* help funcitons */
 /* ------------------------------------------------------------------------------- */
 extern inline double wtime(void);
+extern inline void wait_cycles(unsigned int cycles);
 extern void set_cpu(int cpu);
 
 typedef uint64_t ticks;
 extern inline ticks getticks(void);
+
 
 extern inline int ssmp_id();
 extern inline int ssmp_num_ues();
