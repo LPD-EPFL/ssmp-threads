@@ -13,22 +13,24 @@ static ssmp_msg_t *tmpm;
 /* receiving functions : default is blocking */
 /* ------------------------------------------------------------------------------- */
 
-inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length) {
-  tmpm = ssmp_recv_buf[from];
+void ssmp_recv_from(int from, ssmp_msg_t *msg, int length) {
+  ssmp_msg_t *tmpm = ssmp_recv_buf[from];
 #ifdef USE_ATOMIC  
-  while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_MESSG, BUF_MESSG)) {
-    _mm_pause();
+  while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_MESSG, BUF_LOCKD)) {
+    wait_cycles(WAIT_TIME);
   }
 #else
   while(tmpm->state == BUF_EMPTY);
 #endif
-
-  CPY_LLINTS(msg, tmpm, length);
+  msg->w0 = tmpm->w0;				
+  msg->w1 = tmpm->w1;				
+  msg->w2 = tmpm->w2;				
+  msg->w3 = tmpm->w3;				
+  msg->w4 = tmpm->w4;				
+  msg->w5 = tmpm->w5;				
+  //  CPY_LLINTS(msg, tmpm, length);
   tmpm->state = BUF_EMPTY;
 
-  //  msg->sender = from; //do not set the sender of the msg since we know him :)
-
-  PD("recved from %d\n", from);
 }
 
 inline ssmp_msg_t * ssmp_recv_fromp(int from) {
@@ -122,21 +124,28 @@ inline int ssmp_recv_try(ssmp_msg_t *msg, int length) {
 }
 
 
-inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length) {
-  int from;
+void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length) {
+  unsigned int from;
   while(1) {
     //XXX: maybe have a last_recv_from field
     for (from = 0; from < cbuf->num_ues; from++) {
 
-#ifdef USE_ATOMIC  
-      if(__sync_bool_compare_and_swap(&cbuf->buf[from]->state, BUF_MESSG, BUF_MESSG)) {
+#ifdef USE_ATOMIC
+      if(__sync_bool_compare_and_swap(&cbuf->buf[from]->state, BUF_MESSG, BUF_LOCKD)) {
 #else
-      if (cbuf->buf[from]->state) {
+      if (cbuf->buf[from]->state == BUF_MESSG) {
 #endif
-	CPY_LLINTS(msg, cbuf->buf[from], length);
-
+	//CPY_LLINTS(msg, cbuf->buf[from], length);
+	ssmp_msg_t *tmpm = cbuf->buf[from];
+	msg->w0 = tmpm->w0;				
+	msg->w1 = tmpm->w1;				
+	msg->w2 = tmpm->w2;				
+	msg->w3 = tmpm->w3;				
+	msg->w4 = tmpm->w4;				
+	msg->w5 = tmpm->w5;				
 	msg->sender = cbuf->from[from];
-	cbuf->buf[from]->state = BUF_EMPTY;
+
+	tmpm->state = BUF_EMPTY;
 	return;
       }
     }
