@@ -21,7 +21,9 @@
 
 int num_procs = 2;
 long long int nm = 100000000;
-int ID, clines = 1;
+int ID;
+
+#define MSIZE (1024 * 1024)
 
 int main(int argc, char **argv) {
   if (argc > 1) {
@@ -32,71 +34,77 @@ int main(int argc, char **argv) {
   }
 
   ID = 0;
-  printf("NUM of processes: %d\n", num_procs);
+  printf("RUNNING ON MEM NODE: %d\n", num_procs);
   printf("NUM of msgs: %lld\n", nm);
-  printf("app guys sending to ID-1!\n");
 
-  ssmp_msg_t *cls = (ssmp_msg_t *) malloc(8 * sizeof(ssmp_msg_t));
-  if (argc > 3) {
-    clines = atoi(argv[3]);
-  }
-  P("updating %d cache lines", clines);
+  numa_set_preferred(num_procs);
 
   ssmp_init(num_procs);
 
-  int rank;
-  for (rank = 1; rank < num_procs; rank++) {
-    P("Forking child %d", rank);
-    pid_t child = fork();
-    if (child < 0) {
-      P("Failure in fork():\n%s", strerror(errno));
-    } else if (child == 0) {
-      goto fork_done;
-    }
+  if (argc > 3) {
+    int on = atoi(argv[3 + ID]);
+    P("placed on core %d", on);
+    set_cpu(on);
   }
-  rank = 0;
-
- fork_done:
-  ID = rank;
-  P("Initializing child %u", rank);
-  ssmp_mem_init(ID, num_procs);
-  P("Initialized child %u", rank);
-
-  srand(ID * (int)(1000000*wtime()));
+  else {
+    set_cpu(ID);
+  }
+  //  ssmp_mem_init(ID, num_procs);
 
   ssmp_barrier_wait(0);
-  long long int nm1 = nm;
-  P("CLEARED barrier %d", 0);
 
   double _start = wtime();
   ticks _start_ticks = getticks();
 
-  int i, s;  
-  while(nm1--) {
-    switch(clines) {
-    case 8:
-      cls[7].w0 = nm1;
-      cls[0].w1 = nm1;
-      cls[3].w3 = nm1;
-      cls[2].w2 = nm1;
-    case 4:
-      cls[1].w3 = nm1;
-      cls[4].w1 = nm1;
-    case 2:
-      cls[5].w6 = nm1;
-    case 1:
-      cls[6].w3 = nm1;
+
+
+  if (argc < 4) {
+    P("testing numa access latencies --- ---");
+    int *memory = (int *) malloc(MSIZE * sizeof(int));
+    assert(memory != NULL);
+    long long int w = nm;
+    long long int s = 0;
+
+    while (w > 0) {
+      unsigned int i;
+      for (i = 0; i < MSIZE; i+=16) {
+	_mm_stream_si32(memory + i, w - i);
+      }
+      /*    for (i = 0; i < MSIZE; i+=16) {
+	    s += memory[i];
+	    }
+      */
+      w -= (MSIZE/16);
+    }
+
+    printf("sum = %lld\n", s);
+  }
+  else {
+    P("testing CAS  access latencies --- ---");
+
+    ssmp_msg_t *comb = (ssmp_msg_t *) mmap(0,2 * sizeof(ssmp_msg_t),PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);
+    assert(comb != NULL);
+    comb[0].state = 0;
+    comb[1].state = 0;
+
+    long long int w = nm;
+    unsigned int prev = 0;
+    unsigned int val;
+    srand(time(NULL));
+
+    while (w--) {
+      val = rand();
+      if(!__sync_bool_compare_and_swap(&comb->state, prev, val)) {
+	P("no no no cas failed");
+      }
+      prev = val;
     }
   }
-
-
-  
 
   ticks _end_ticks = getticks();
   double _end = wtime();
 
   double _time = _end - _start;
-  P("%d", s);
   ticks _ticks = _end_ticks - _start_ticks;
   ticks _ticksm =(ticks) ((double)_ticks / nm);
   double lat = (double) (1000*1000*1000*_time) / nm;
@@ -110,8 +118,6 @@ int main(int argc, char **argv) {
 	 _ticks, _ticksm);
 
 
-
-  ssmp_barrier_wait(1);
 
   ssmp_term();
   return 0;

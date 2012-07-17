@@ -19,9 +19,10 @@
 #include "common.h"
 #include "ssmp.h"
 
+
 int num_procs = 2;
 long long int nm = 100000000;
-int ID;
+int ID, on;
 
 int main(int argc, char **argv) {
   if (argc > 1) {
@@ -36,11 +37,16 @@ int main(int argc, char **argv) {
   printf("NUM of msgs: %lld\n", nm);
   printf("app guys sending to ID-1!\n");
 
+  if (argc > 3) {
+    on = atoi(argv[3 + ID]);
+    P("placed on core %d", on);
+    set_cpu(on);
+  }
+
   ssmp_init(num_procs);
 
   int rank;
   for (rank = 1; rank < num_procs; rank++) {
-    P("Forking child %d", rank);
     pid_t child = fork();
     if (child < 0) {
       P("Failure in fork():\n%s", strerror(errno));
@@ -54,9 +60,11 @@ int main(int argc, char **argv) {
   ID = rank;
   P("Initializing child %u", rank);
   if (argc > 3) {
-    int on = atoi(argv[3 + ID]);
-    P("placed on core %d", on);
-    set_cpu(on);
+    if (ID > 0) {
+      on = atoi(argv[3 + ID]);
+      P("placed on core %d", on);
+      set_cpu(on);
+    }
   }
   else {
     set_cpu(ID);
@@ -70,7 +78,9 @@ int main(int argc, char **argv) {
   double _start = wtime();
   ticks _start_ticks = getticks();
 
-  ssmp_msg_t msg;
+  ssmp_msg_t msg, *msgp;
+  msgp = (ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
+  assert(msgp != NULL);
   
   if (ID % 2 == 0) {
     P("service core!");
@@ -78,16 +88,13 @@ int main(int argc, char **argv) {
     int from = ID+1;
     
     while(1) {
-      ssmp_recv_from(from, &msg, 24);
-      if (msg.w0 < 0) {
-	int co;
-	for (co = 0; co < ssmp_num_ues(); co++) {
-	  //P("from[%d] = %d", co, from[co]);
-	}
+      //      ssmp_recv_from(from, msgp, 24);
+      ssmp_recv_fromm(from, msgp);
+      ssmp_sendm(from, msgp);
+      if (msgp->w0 < 0) {
 	P("exiting..");
 	exit(0);
       }
-      
     }
   }
   else {
@@ -96,9 +103,10 @@ int main(int argc, char **argv) {
     long long int nm1 = nm;
     
     while (nm1--) {
-      msg.w0 = nm1;
-      ssmp_send(to, &msg, 24);
-      //      ssmp_recv_from(to, &msg);
+      msgp->w0 = nm1;
+      //  ssmp_send(to, msgp, 24);
+      ssmp_sendm(to, msgp);
+      ssmp_recv_fromm(to, msgp);
     }
 
 
@@ -125,9 +133,10 @@ int main(int argc, char **argv) {
 
 
   ssmp_barrier_wait(1);
-  int ex = -1;
-  ssmp_send(ssmp_id() - 1, (ssmp_msg_t *) &ex, sizeof(long long int));
-
+  if (ssmp_id() % 2) {
+    int ex[16]; ex[0] = -1;
+    ssmp_send(ssmp_id() - 1, (ssmp_msg_t *) &ex, sizeof(long long int));
+  }
 
   ssmp_term();
   return 0;

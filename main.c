@@ -62,93 +62,55 @@ int main(int argc, char **argv) {
   P("Initialized child %u", rank);
 
 #ifdef COLOR_BUF
-  ssmp_color_buf_t cbuf;
-  ssmp_color_buf_init(&cbuf, color_app);
+  ssmp_color_buf_t *cbuf;
+  cbuf = (ssmp_color_buf_t *) malloc(sizeof(ssmp_color_buf_t));
+  assert(cbuf != NULL);
+  ssmp_color_buf_init(cbuf, color_app);
 #endif
+
+  ssmp_msg_t *msg;
+  msg = (ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
+  assert(msg != NULL);
 
   ssmp_barrier_wait(0);
   P("CLEARED barrier %d", 0);
 
+
   double _start = wtime();
   ticks _start_ticks = getticks();
 
-  ssmp_msg_t msg;
-
   if (ID % 2 == 0) {
-    P("service core!");
-
-    unsigned int from[48];
-    from[0] = from[1] = from[2] = from[3] = 0;
     while(1) {
-#ifdef COLOR_BUF
-#ifdef USE_MEMCPY
-      ssmp_recv_color(&cbuf, &msg, 24);
-#else
-      ssmp_recv_color6(&cbuf, &msg);
-#endif
-#else
-      ssmp_recv6(&msg);
-#endif
-      //      P("reved from %d", msg.sender);
-      if (msg.w0 < 0) {
+      ssmp_recv_color(cbuf, msg, 24);
+      //ssmp_recv_fromm(from, msg);
+      //ssmp_recv_from(from, msg, 24);
+      if (msg->w0 < 0) {
 	P("exiting ..");
-	int co;
-	for (co = 0; co < ssmp_num_ues(); co++) {
-	  //	  P("from[%d] = %d", co, from[co]);
-	}
 	exit(0);
       }
-      from[msg.sender]++;
-#ifdef USE_MEMCPY
-#ifdef BLOCKING
-      ssmp_sendb(msg.sender, &msg, 8);
-#else
-#ifdef USE_SIGNAL
-      ssmp_send_sig(msg.sender);
-#else
-      ssmp_send(msg.sender, &msg, 8);
-#endif
-#endif
-#else 
-      ssmp_send6(msg.sender, msg.w0, msg.w1, msg.w2, msg.w3, msg.w4, msg.w5);
-#endif
-      
-      
+      //ssmp_send(from, msg, 24);
+      //      ssmp_sendm(from, msg)
+      //      ssmp_send(msg->sender, msg, 8);
+      ssmp_sendm(msg->sender, msg);
     }
   }
   else {
-    P("app core!");
-    int to = 0;
+    unsigned int to = ID-1;
     long long int nm1 = nm;
-    
+    //    to = ID - 1;
     while (nm1--) {
       to = (to + 2) % num_procs;
 
-#ifdef USE_MEMCPY
-      msg.w0 = nm1;
-#ifdef BLOCKING
-      ssmp_sendb(to, &msg, 24);
-#else
-      ssmp_send(to, &msg, 24);
-#endif
-#else
-      ssmp_send6(to, nm1, nm1, nm1, nm1, nm1, to);
-#endif
+      msg->w0 = nm1;
+      //ssmp_send(to, msg, 24);
+      ssmp_sendm(to, msg);
 
-#ifdef USE_MEMCPY
-#ifdef USE_SIGNAL
-      ssmp_recv_from_sig(to);
-#else
-      ssmp_recv_from(to, &msg, 24);
-#endif
-#else
-      ssmp_recv_from6(to, &msg);
-#endif
+      //ssmp_recv_from(to, msg, 24);
+      ssmp_recv_fromm(to, msg);
 
-
-      if (msg.w0 != nm1) {
-	P("Ping-pong failed: sent %lld, recved %d", nm1, msg.w0);
-      }
+      /*      if (msg->w0 != nm1) {
+	P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
+	}*/
     }
   }
 
@@ -177,7 +139,8 @@ int main(int argc, char **argv) {
     int core; 
     for (core = 0; core < ssmp_num_ues(); core++) {
       if (core % 2 == 0) {
-	ssmp_send1(core, -1);
+	ssmp_msg_t s; s.w0 = -1;
+	ssmp_send(core, &s, 24);
       }
     }
   }
