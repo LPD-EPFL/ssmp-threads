@@ -18,7 +18,7 @@ inline void ssmp_send(int to, ssmp_msg_t *msg, int length) {
   tmpm = ssmp_send_buf[to];
 #ifdef USE_ATOMIC
   while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_LOCKD)) {
-    wait_cycles(1);
+    wait_cycles(WAIT_TIME);
   }
 #else 
   while(tmpm->state == BUF_MESSG);
