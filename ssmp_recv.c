@@ -126,12 +126,15 @@ inline int ssmp_recv_try(ssmp_msg_t *msg, int length) {
 
 void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length) {
   unsigned int from;
+  unsigned int num_ues = cbuf->num_ues;
+  unsigned int **cbuf_state = cbuf->buf_state;
   while(1) {
     //XXX: maybe have a last_recv_from field
-    for (from = 0; from < cbuf->num_ues; from++) {
+    for (from = 0; from < num_ues; from++) {
 
 #ifdef USE_ATOMIC
-      if(__sync_bool_compare_and_swap(&cbuf->buf[from]->state, BUF_MESSG, BUF_LOCKD)) {
+      //      if(__sync_bool_compare_and_swap(&cbuf_buf[from]->state, BUF_MESSG, BUF_LOCKD)) {
+      if(__sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD)) {
 #else
       if (cbuf->buf[from]->state == BUF_MESSG) {
 #endif
