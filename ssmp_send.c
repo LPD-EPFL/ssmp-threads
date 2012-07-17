@@ -13,19 +13,24 @@ static ssmp_msg_t *tmpm;
 /* sending functions : default is blocking */
 /* ------------------------------------------------------------------------------- */
 
-//#define tmpm ssmp_send_buf[to]
 
 inline void ssmp_send(int to, ssmp_msg_t *msg, int length) {
   tmpm = ssmp_send_buf[to];
 #ifdef USE_ATOMIC
-  while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_EMPTY)) {
-    _mm_pause();
+  while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_LOCKD)) {
+    wait_cycles(1);
   }
 #else 
   while(tmpm->state == BUF_MESSG);
 #endif
 
-  CPY_LLINTS(tmpm, msg, length);
+  tmpm->w0 = msg->w0;	
+  tmpm->w1 = msg->w1;	
+  tmpm->w2 = msg->w2;
+  tmpm->w3 = msg->w3;
+  tmpm->w4 = msg->w4;
+  tmpm->w5 = msg->w5;
+    //CPY_LLINTS(tmpm, msg, length);
   tmpm->state = BUF_MESSG;
 }
 
