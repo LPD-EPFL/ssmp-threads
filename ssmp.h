@@ -19,6 +19,7 @@
 /* ------------------------------------------------------------------------------- */
 #define SSMP_NUM_BARRIERS 16 /*number of available barriers*/
 #define SSMP_CHUNK_SIZE 1020
+#define SSMP_CACHE_LINE_SIZE 64
 
 #define BUF_EMPTY 0
 #define BUF_MESSG 1
@@ -140,9 +141,11 @@ typedef struct {
 
 /*type used for color-based function, i.e. functions that operate on a subset of the cores according to a color function*/
 typedef struct {
-  int num_ues;
   ssmp_msg_t **buf;
-  int *from;
+  unsigned int **buf_state;
+  unsigned int *from;
+  unsigned int num_ues;
+  int32_t pad[8];
 } ssmp_color_buf_t;
 
 
@@ -253,8 +256,8 @@ extern inline int ssmp_recv_try6(ssmp_msg_t *msg);
 /* ------------------------------------------------------------------------------- */
 
 /* initialize the color buf data structure to be used with consequent ssmp_recv_color calls. A node is considered a participant if the call to color(ID) returns 1 */
-extern inline void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int));
-extern inline void ssmp_color_buf_free(ssmp_color_buf_t *cbuf);
+extern void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int));
+extern void ssmp_color_buf_free(ssmp_color_buf_t *cbuf);
 
 /* blocking receive from any of the participants according to the color function */
 extern inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length);
