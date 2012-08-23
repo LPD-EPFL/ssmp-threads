@@ -8,8 +8,8 @@
 /* ------------------------------------------------------------------------------- */
 
 static ssmp_msg_t *ssmp_mem;
-ssmp_msg_t **ssmp_recv_buf;
-ssmp_msg_t **ssmp_send_buf;
+volatile ssmp_msg_t **ssmp_recv_buf;
+volatile ssmp_msg_t **ssmp_send_buf;
 static ssmp_chunk_t *ssmp_chunk_mem;
 ssmp_chunk_t **ssmp_chunk_buf;
 int ssmp_num_ues_;
@@ -91,12 +91,15 @@ void ssmp_init(int num_procs)
 #define P(s, t) printf("[%02d] ", id); printf(s, t); printf("\n"); fflush(stdout)
 
 void ssmp_mem_init(int id, int num_ues) {
+  SP("\t\t\tcore %02d -> tnuma_set_preferred(%d)", id, id/6);
+  numa_set_preferred(id/6);  
+
   ssmp_id_ = id;
   ssmp_num_ues_ = num_ues;
   last_recv_from = (id + 1) % num_ues;
 
-  ssmp_recv_buf = (ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
-  ssmp_send_buf = (ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
+  ssmp_recv_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
+  ssmp_send_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
   ssmp_chunk_buf = (ssmp_chunk_t **) malloc(num_ues * sizeof(ssmp_chunk_t *));
   if (ssmp_recv_buf == NULL || ssmp_send_buf == NULL || ssmp_chunk_buf == NULL) {
     perror("malloc@ ssmp_mem_init\n");
@@ -108,6 +111,8 @@ void ssmp_mem_init(int id, int num_ues) {
   unsigned int core;
   sprintf(keyF, "/ssmp_core%03d", id);
   
+  if (num_ues == 1) return;
+
   
   int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
   if (ssmpfd < 0) {
@@ -153,7 +158,6 @@ void ssmp_mem_init(int id, int num_ues) {
    */
 
   ssmp_barrier_wait(0);
-  if (id == 0)  printf("--------------------------------------------- end phase 1\n");
   
   for (core = 0; core < num_ues; core++) {
     if (core == id) {
@@ -252,17 +256,17 @@ void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int)) {
 
   if (size_buf % SSMP_CACHE_LINE_SIZE) {
     size_pad = (SSMP_CACHE_LINE_SIZE - (size_buf % SSMP_CACHE_LINE_SIZE)) / sizeof(ssmp_msg_t *);
-    unsigned int size_old = size_buf;
+    //unsigned int size_old = size_buf;
     size_buf += size_pad * sizeof(ssmp_msg_t *);
   }
 
-  cbuf->buf = (ssmp_msg_t **) malloc(size_buf);
+  cbuf->buf = (volatile ssmp_msg_t **) malloc(size_buf);
   if (cbuf->buf == NULL) {
     perror("malloc @ ssmp_color_buf_init");
     exit(-1);
   }
 
-  cbuf->buf_state = (unsigned int **) malloc(size_buf);
+  cbuf->buf_state = (volatile unsigned int **) malloc(size_buf);
   if (cbuf->buf_state == NULL) {
     perror("malloc @ ssmp_color_buf_init");
     exit(-1);
@@ -450,8 +454,6 @@ void set_cpu(int cpu) {
     exit(3);
   }
   
-  SP("\t\t\tcore %02d -> tnuma_set_preferred(%d)", cpu, cpu/6);
-  numa_set_preferred(cpu/6);  
 }
 
 #if defined(__i386__)

@@ -1,13 +1,13 @@
 #include "ssmp.h"
 
-extern ssmp_msg_t **ssmp_recv_buf;
-extern ssmp_msg_t **ssmp_send_buf;
+extern volatile ssmp_msg_t **ssmp_recv_buf;
+extern volatile ssmp_msg_t **ssmp_send_buf;
 extern ssmp_chunk_t **ssmp_chunk_buf;
 extern int ssmp_num_ues_;
 extern int ssmp_id_;
 extern int last_recv_from;
 extern ssmp_barrier_t *ssmp_barrier;
-static ssmp_msg_t *tmpm;
+static volatile ssmp_msg_t *tmpm;
 
 /* ------------------------------------------------------------------------------- */
 /* sending functions : default is blocking */
@@ -15,7 +15,7 @@ static ssmp_msg_t *tmpm;
 
 
 inline void ssmp_send(int to, ssmp_msg_t *msg, int length) {
-  tmpm = ssmp_send_buf[to];
+  volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
 #ifdef USE_ATOMIC
   while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_LOCKD)) {
     wait_cycles(WAIT_TIME);
@@ -30,6 +30,8 @@ inline void ssmp_send(int to, ssmp_msg_t *msg, int length) {
   tmpm->w3 = msg->w3;
   tmpm->w4 = msg->w4;
   tmpm->w5 = msg->w5;
+  tmpm->w6 = msg->w6;
+  tmpm->w7 = msg->w7;
     //CPY_LLINTS(tmpm, msg, length);
   tmpm->state = BUF_MESSG;
 }
@@ -100,7 +102,7 @@ inline int ssmp_send_try(int to, ssmp_msg_t *msg, int length) {
  */
 
 inline void ssmp_send1(int to, int w0) {
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   while(m->state);      
 
@@ -112,7 +114,7 @@ inline void ssmp_send1(int to, int w0) {
 }
 
 inline void ssmp_send2(int to, int w0, int w1) {
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   while(m->state);      
 
@@ -125,7 +127,7 @@ inline void ssmp_send2(int to, int w0, int w1) {
 }
 
 inline void ssmp_send3(int to, int w0, int w1, int w2) {
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   while(m->state);      
 
@@ -139,7 +141,7 @@ inline void ssmp_send3(int to, int w0, int w1, int w2) {
 }
 
 inline void ssmp_send4(int to, int w0, int w1, int w2, int w3) {
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   while(m->state);      
 
@@ -154,7 +156,7 @@ inline void ssmp_send4(int to, int w0, int w1, int w2, int w3) {
 }
 
 inline void ssmp_send5(int to, int w0, int w1, int w2, int w3, int w4) {
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   while(m->state);      
 
@@ -170,7 +172,7 @@ inline void ssmp_send5(int to, int w0, int w1, int w2, int w3, int w4) {
 }
 
 inline void ssmp_send6(int to, int w0, int w1, int w2, int w3, int w4, int w5) {
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   while(m->state);      
 
@@ -187,7 +189,7 @@ inline void ssmp_send6(int to, int w0, int w1, int w2, int w3, int w4, int w5) {
 }
 
 inline int ssmp_send_try1(int to, int w0) { 
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   if (!m->state) {
     m->w0 = w0;
@@ -199,7 +201,7 @@ inline int ssmp_send_try1(int to, int w0) {
 }
 
 inline int ssmp_send_try2(int to, int w0, int w1) {
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   if (!m->state) {
     m->w0 = w0;
@@ -212,7 +214,7 @@ inline int ssmp_send_try2(int to, int w0, int w1) {
 } 
 
 inline int ssmp_send_try3(int to, int w0, int w1, int w2) {
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   if (!m->state) {
     m->w0 = w0;
@@ -226,7 +228,7 @@ inline int ssmp_send_try3(int to, int w0, int w1, int w2) {
 }
 
 inline int ssmp_send_try4(int to, int w0, int w1, int w2, int w3) {
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   if (!m->state) {
     m->w0 = w0;
@@ -242,7 +244,7 @@ inline int ssmp_send_try4(int to, int w0, int w1, int w2, int w3) {
 
 
 inline int ssmp_send_try5(int to, int w0, int w1, int w2, int w3, int w4) { 
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   if (!m->state) {
     m->w0 = w0;
@@ -258,7 +260,7 @@ inline int ssmp_send_try5(int to, int w0, int w1, int w2, int w3, int w4) {
 }
 
 inline int ssmp_send_try6(int to, int w0, int w1, int w2, int w3, int w4, int w5) { 
-  ssmp_msg_t *m = ssmp_send_buf[to];
+  volatile ssmp_msg_t *m = ssmp_send_buf[to];
   
   if (!m->state) {
     m->w0 = w0;

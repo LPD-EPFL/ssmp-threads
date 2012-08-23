@@ -1,8 +1,8 @@
 #include "ssmp.h"
 
 extern ssmp_msg_t *ssmp_mem;
-extern ssmp_msg_t **ssmp_recv_buf;
-extern ssmp_msg_t **ssmp_send_buf;
+extern volatile ssmp_msg_t **ssmp_recv_buf;
+extern volatile ssmp_msg_t **ssmp_send_buf;
 extern int ssmp_num_ues_;
 extern int ssmp_id_;
 extern int last_recv_from;
