@@ -1,6 +1,6 @@
 ifeq ($(P),0) #give P=0 to compile with debug info
 DEBUG_CFLAGS=-ggdb -Wall -g  -fno-inline #-pg
-PERF_CLFAGS= -lnuma -O3
+PERF_CLFAGS= -lnuma #-O3
 else
 DEBUG_CFLAGS=-Wall
 PERF_CLFAGS= -lnuma -O3
@@ -33,10 +33,10 @@ libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h
 	rm -f *.o	
 
 one2one: libssmp.a one2one.o common.h
-	gcc $(VER_FLAGS) -o one2one one2one.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) -O3
+	gcc $(VER_FLAGS) -o one2one one2one.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) #-O3
 
 one2one.o:	one2one.c ssmp.c
-		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) -O3 
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) #-O3 
 
 cas_stresh: libssmp.a cas_stresh.o common.h
 	gcc $(VER_FLAGS) -o cas_stresh cas_stresh.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
@@ -49,6 +49,13 @@ one2one_manual: libssmp.a one2one_manual.o common.h
 
 one2one_manual.o:	one2one_manual.c ssmp.c
 		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one_manual.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) -O3
+
+ticket_lock: libssmp.a ticket_lock.o common.h
+	gcc $(VER_FLAGS) -o ticket_lock ticket_lock.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+ticket_lock.o:	ticket_lock.c ssmp.c
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c ticket_lock.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
 
 one2onep: libssmp.a one2onep.o common.h
 	gcc $(VER_FLAGS) -o one2onep one2onep.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
