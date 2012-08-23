@@ -23,7 +23,7 @@ int num_procs = 2;
 long long int nm = 100000000;
 int ID;
 
-#define MSIZE (1024 * 1024)
+#define MSIZE (24 * 1000 * 1000)
 
 int main(int argc, char **argv) {
   if (argc > 1) {
@@ -58,23 +58,23 @@ int main(int argc, char **argv) {
 
 
 
-  if (argc < 4) {
+  if (argc < 5) {
     P("testing numa access latencies --- ---");
-    int *memory = (int *) malloc(MSIZE * sizeof(int));
+    volatile int *memory = (volatile int *) malloc(MSIZE * sizeof(int));
     assert(memory != NULL);
     long long int w = nm;
     long long int s = 0;
 
     while (w > 0) {
       unsigned int i;
-      for (i = 0; i < MSIZE; i+=16) {
+      for (i = 0; i < MSIZE; i+=24) {
 	_mm_stream_si32(memory + i, w - i);
       }
       /*    for (i = 0; i < MSIZE; i+=16) {
 	    s += memory[i];
 	    }
       */
-      w -= (MSIZE/16);
+      w -= (MSIZE/24);
     }
 
     printf("sum = %lld\n", s);
