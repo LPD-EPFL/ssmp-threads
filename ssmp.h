@@ -13,7 +13,9 @@
 #include <sched.h>
 #include <inttypes.h>
 #include <emmintrin.h>
+#ifdef PLATFORM_NUMA
 #include <numa.h>
+#endif /* PLATFORM_NUMA */
 
 /* ------------------------------------------------------------------------------- */
 /* defines */

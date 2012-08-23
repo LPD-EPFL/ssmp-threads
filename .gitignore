@@ -11,7 +11,6 @@
 /mem_latencies
 /memstresh
 /memstreshmp
-/one2one_i
 /mpmap.out
 /mpmap.out.cas.numa
 /mpmap.out.cas.numa.15Jul
@@ -20,12 +19,13 @@
 /numactl.before.mem.modules
 /o
 /one2one_atomic
+/one2one_i
 /one2one_int
 /one2one_lli
-/one2one_memcpy
 /one2one_manual
 /one2one_manual_old_msg_t
 /one2one_mem
+/one2one_memcpy
 /one2one_no_m
 /one2one_numa
 /one2one_recv
@@ -51,6 +51,7 @@
 /tail
 /test_pref
 /ticket_lock
+/wcycles
 /with_memcpy
 barriercolor_*
 cscope*

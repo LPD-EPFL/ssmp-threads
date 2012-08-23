@@ -91,9 +91,10 @@ void ssmp_init(int num_procs)
 #define P(s, t) printf("[%02d] ", id); printf(s, t); printf("\n"); fflush(stdout)
 
 void ssmp_mem_init(int id, int num_ues) {
+#ifdef PLATFORM_NUMA
   SP("\t\t\tcore %02d -> tnuma_set_preferred(%d)", id, id/6);
   numa_set_preferred(id/6);  
-
+#endif /* PLATFORM_NUMA */
   ssmp_id_ = id;
   ssmp_num_ues_ = num_ues;
   last_recv_from = (id + 1) % num_ues;

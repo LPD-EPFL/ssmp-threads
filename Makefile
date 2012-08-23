@@ -1,10 +1,16 @@
+PLATFORM_NUMA=0
+
 ifeq ($(P),0) #give P=0 to compile with debug info
 DEBUG_CFLAGS=-ggdb -Wall -g  -fno-inline #-pg
-PERF_CLFAGS= -lnuma #-O3
+PERF_CLFAGS= 
 else
 DEBUG_CFLAGS=-Wall
-PERF_CLFAGS= -lnuma -O3
+PERF_CLFAGS= -O3
 endif
+
+ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
+PERF_CLFAGS+= -lnuma
+endif 
 
 
 default: main
@@ -62,6 +68,13 @@ one2onep: libssmp.a one2onep.o common.h
 
 one2onep.o:	one2onep.c ssmp.c
 		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2onep.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+wcycles: libssmp.a wcycles.o common.h
+	gcc $(VER_FLAGS) -o wcycles wcycles.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+
+wcycles.o:	wcycles.c ssmp.c
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c wcycles.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
 
 memstresh: libssmp.a memstresh.o common.h
 	gcc $(VER_FLAGS) -o memstresh memstresh.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
