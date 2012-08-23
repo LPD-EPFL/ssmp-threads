@@ -18,6 +18,8 @@
 
 #include "common.h"
 #include "ssmp.h"
+#include "ssmp_recv.h"
+#include "ssmp_send.h"
 
 #define COLOR_BUF
 #define USE_MEMCPY
@@ -66,8 +68,8 @@ int main(int argc, char **argv) {
     ssmp_color_buf_init(cbuf, color_app);
   }
 
-  ssmp_msg_t *msg;
-  msg = (ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
+  volatile ssmp_msg_t *msg;
+  msg = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
   assert(msg != NULL);
 
   ssmp_barrier_wait(0);
@@ -85,8 +87,9 @@ int main(int argc, char **argv) {
 	P("exiting ..");
 	exit(0);
       }
-      ssmp_send(msg->sender, msg, 8);
-      //ssmp_sendm(msg->sender, msg);
+      //ssmp_send(msg->sender, msg, 8);
+      //      ssmp_sendm(msg->sender, msg);
+      ssmp_send_inline(msg->sender, msg);
     }
   }
   else {
@@ -96,12 +99,12 @@ int main(int argc, char **argv) {
       to = (to + 2) % num_procs;
 
       msg->w0 = nm1;
-      ssmp_send(to, msg, 24);
-      //ssmp_sendm(to, msg);
-
-      ssmp_recv_from(to, msg, 24);
-      //ssmp_recv_fromm(to, msg);
-
+      //      ssmp_send(to, msg, 24);
+      //      ssmp_recv_from(to, msg, 24);
+      //      ssmp_sendm(to, msg);
+      //      ssmp_recv_fromm(to, msg);
+      ssmp_send_inline(to, msg);
+      ssmp_recv_from_inline(to, msg);
       if (msg->w0 != nm1) {
 	P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
       }
