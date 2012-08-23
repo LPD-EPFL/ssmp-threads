@@ -33,21 +33,27 @@ static inline void valset(volatile unsigned int *point, int ret) {
                        : "memory");
 }
 
-/*static inline void valget(volatile unsigned int *point, int ret) {
-  __asm__ __volatile__("xchgl %0, %1"
-                       : "=r"(ret)
-                       : "0"(ret), "m"(*point)
-                       : "memory");
-		       }*/
-
-#define valget(a,b) asm( "xchg %0, %1" : "=r" (a) , "=mr" (b) : "0" (a),  "1" (b) );
-
 static inline void wait_cycles(unsigned int cycles) {
   cycles /= 6;
   while (cycles--) {
       _mm_pause();
   }
 }
+
+typedef struct ticket_lock {
+  unsigned int current;
+  unsigned int ticket;
+} ticket_lock_t;
+
+__attribute__ ((always_inline)) void tlock(ticket_lock_t * lock) {
+  unsigned int ticket = __sync_add_and_fetch (&lock->ticket, 1);
+  while (ticket != lock->current);
+}
+
+__attribute__ ((always_inline)) void tunlock(ticket_lock_t * lock) {
+  lock->current++;
+}
+
 
 int num_procs = 2;
 long long int nm = 100000000;
@@ -128,41 +134,47 @@ int main(int argc, char **argv) {
     }
   }
 
-  ssmp_msg_t * comb = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
+  volatile ssmp_msg_t * comb = (volatile ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
   if (comb == NULL || (unsigned int) comb == 0xFFFFFFFF) {
     perror("comb = NULL\n");
     exit(134);
   }
+
+  ticket_lock_t *lock = (ticket_lock_t *) mmap(NULL, sizeof(ticket_lock_t), PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
+  assert(lock != NULL);
 
   if (ssmp_id() == 0) {
     ssmp_barrier_wait(0);
   }
   ssmp_barrier_wait(0);
 
-
-
-
-
-  double _start = wtime();
-  ticks _start_ticks = getticks();
-
-  ssmp_msg_t msg, *msgp; msg.w0 = 1; comb[0].w0 = 1;
-  msgp = (ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
+  volatile ssmp_msg_t *msgp; comb[0].w0 = 1;
+  msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
   assert(msgp != NULL);
   unsigned int cur = 0;
   msgp->w0 = 1;
   
 
   unsigned long long int times = 0, ttimes = 0;
-  /*  long long int nm1 = nm;
-  while (nm1--) {
-    wait_cycles(wcycles);
-  }
-  goto no_msging;
-  */
+  long long int nm1 = nm;
 
+  double _start = wtime();
+  ticks _start_ticks = getticks();
+
+
+  while (nm1--) {
+    tlock(lock);
+    P("locked it");
+    tunlock(lock);
+
+  }
+  
+
+  /*
   if (ID % 2 == 0) {
     P("service core!");
+
+    unsigned int old = nm-1;
 
     while(1) {
       
@@ -171,17 +183,30 @@ int main(int argc, char **argv) {
 	wait_cycles(wcycles);
       }
 
+
       msgp->w0 = comb->w0;				
       msgp->w1 = comb->w1;				
       msgp->w2 = comb->w2;				
       msgp->w3 = comb->w3;				
       msgp->w4 = comb->w4;				
       msgp->w5 = comb->w5;				
-
       comb->state = NO_MSG;
+
+      //      memcpy(msgp, comb, 24);
+
       if (msgp->w0 == 0) {
      	exit(0);
       }
+
+      if (msgp->w0 != old) {
+	PRINT("w0 -- expected %d, got %d", old, msgp->w0);
+      }
+      if (msgp->w5 != old) {
+	PRINT("w5 -- expected %d, got %d", old, msgp->w5);
+      }
+
+      old--;
+
     }
   }
   else {
@@ -195,21 +220,29 @@ int main(int argc, char **argv) {
 	wait_cycles(wcycles);
       }
 
-      msgp->w0 = nm1; 
-      comb->w0 = msgp->w0;				
-      comb->w1 = msgp->w1;				
-      comb->w2 = msgp->w2;				
-      comb->w3 = msgp->w3;				
-      comb->w4 = msgp->w4;				
-      comb->w5 = msgp->w5;				
+      msgp->w0 = nm1;
+      msgp->w1 = nm1;
+      msgp->w2 = nm1;
+      msgp->w3 = nm1;
+      msgp->w4 = nm1;
+      msgp->w5 = nm1;
+      msgp->state = MSG;
       
+	comb->w0 = msgp->w0;				
+	comb->w1 = msgp->w1;				
+	comb->w2 = msgp->w2;				
+	comb->w3 = msgp->w3;				
+	comb->w4 = msgp->w4;				
+	comb->w5 = msgp->w5;				
+      
+	//      memcpy(comb, msgp, 24);
       comb->state = MSG;
       //      ttimes += times;  
       //      times = 0;
     }
   }
 
-
+  */
   ticks _end_ticks = getticks();
   double _end = wtime();
 

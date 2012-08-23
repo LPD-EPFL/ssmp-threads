@@ -18,11 +18,14 @@
 
 #include "common.h"
 #include "ssmp.h"
-
+#include "ssmp_send.h"
+#include "ssmp_recv.h"
 
 int num_procs = 2;
 long long int nm = 100000000;
 int ID, on;
+
+#define USE_INLINE_
 
 int main(int argc, char **argv) {
   if (argc > 1) {
@@ -36,6 +39,15 @@ int main(int argc, char **argv) {
   printf("NUM of processes: %d\n", num_procs);
   printf("NUM of msgs: %lld\n", nm);
   printf("app guys sending to ID-1!\n");
+
+#if defined(USE_INLINE)
+  P("using INLINE");
+#elif defined(USE_MACRO)
+  P("using MACRO");
+#else      
+  P("using NORMAL");
+#endif
+
 
   if (argc > 3) {
     on = atoi(argv[3 + ID]);
@@ -78,38 +90,63 @@ int main(int argc, char **argv) {
   double _start = wtime();
   ticks _start_ticks = getticks();
 
-  ssmp_msg_t msg, *msgp;
-  msgp = (ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
+  volatile  ssmp_msg_t *msgp;
+  msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
   assert(msgp != NULL);
   
   if (ID % 2 == 0) {
     P("service core!");
 
-    int from = ID+1;
+    unsigned int from = ID+1;
+    unsigned int old = nm-1;
     
     while(1) {
+#if defined(USE_INLINE)
+      ssmp_recv_from_inline(from, msgp);
+#elif defined(USE_MACRO)
+      ssmp_recv_fromm(from, msgp);
+#else      
       ssmp_recv_from(from, msgp, 24);
-      //ssmp_recv_fromm(from, msgp);
-      //      ssmp_sendm(from, msgp);
+#endif
+
+      _mm_mfence();
+
       if (msgp->w0 < 0) {
 	P("exiting..");
 	exit(0);
       }
+      if (msgp->w0 != old) {
+	PRINT("w0 -- expected %d, got %d", old, msgp->w0);
+      }
+      if (msgp->w5 != old) {
+	PRINT("w5 -- expected %d, got %d", old, msgp->w5);
+      }
+      old--;
+	      
     }
   }
   else {
     P("app core!");
-    int to = ID-1;
+    unsigned int to = ID-1;
     long long int nm1 = nm;
     
     while (nm1--) {
       msgp->w0 = nm1;
+      msgp->w1 = nm1;
+      msgp->w2 = nm1;
+      msgp->w3 = nm1;
+      msgp->w4 = nm1;
+      msgp->w5 = nm1;
+
+#if defined(USE_INLINE)
+      ssmp_send_inline(to, msgp);
+#elif defined(USE_MACRO)
+      ssmp_sendm(to, msgp);
+#else      
       ssmp_send(to, msgp, 24);
-      //ssmp_sendm(to, msgp);
-      //      ssmp_recv_fromm(to, msgp);
+#endif
+      _mm_mfence();
     }
-
-
   }
 
   
