@@ -13,14 +13,18 @@
 #include <sched.h>
 #include <inttypes.h>
 #include <emmintrin.h>
+#include <numa.h>
+
 /* ------------------------------------------------------------------------------- */
 /* defines */
 /* ------------------------------------------------------------------------------- */
 #define SSMP_NUM_BARRIERS 16 /*number of available barriers*/
 #define SSMP_CHUNK_SIZE 1020
+#define SSMP_CACHE_LINE_SIZE 64
 
 #define BUF_EMPTY 0
 #define BUF_MESSG 1
+#define BUF_LOCKD 2
 
 #define USE_ATOMIC
 
@@ -32,30 +36,79 @@
 #define PD(args...) 
 #endif
 
-#define USE_MEMCPY
+#define USE_MEMCPY_
 
 #ifdef USE_MEMCPY
 #define CPY_LLINTS(to, from, length)		\
   memcpy(to, from, length)
-#elif defined(USE_INT)
-#define SIZE_I sizeof(int)
-#define CPY_LLINTS(to, from, num)		\
-{						\
-  int i;					\
-  for (i = 0; i < (num)/SIZE_I; i++) {	\
-    to->word[i] = from->word[i];		\
-  }						\
-}
 #else
-#define SIZE_LLI sizeof(long long int)
 #define CPY_LLINTS(to, from, num)		\
-{						\
-  int lli;					\
-  for (lli = 0; lli < (num)/SIZE_LLI; lli++) {	\
-    to->giant[lli] = from->giant[lli];		\
-  }						\
-}
+  switch (num/sizeof(int)) {			\
+  case 1:					\
+    to->w0 = from->w0;				\
+    break;					\
+  case 2:					\
+    to->w0 = from->w0;				\
+    to->w1 = from->w1;				\
+    break;					\
+  case 3:					\
+    to->w0 = from->w0;				\
+    to->w1 = from->w1;				\
+    to->w2 = from->w2;				\
+    break;					\
+  case 4:					\
+    to->w0 = from->w0;				\
+    to->w1 = from->w1;				\
+    to->w2 = from->w2;				\
+    to->w3 = from->w3;				\
+    break;					\
+  case 5:					\
+    to->w0 = from->w0;				\
+    to->w1 = from->w1;				\
+    to->w2 = from->w2;				\
+    to->w3 = from->w3;				\
+    to->w4 = from->w4;				\
+    break;					\
+  case 6:					\
+    to->w0 = from->w0;				\
+    to->w1 = from->w1;				\
+    to->w2 = from->w2;				\
+    to->w3 = from->w3;				\
+    to->w4 = from->w4;				\
+    to->w5 = from->w5;				\
+    break;					\
+  default:					\
+    memcpy(to, from, sizeof(int)*num);		\
+  }
 #endif /* USE_MEMCPY */
+
+#define WAIT_TIME 66
+#define ssmp_recv_fromm(from, msg)					\
+  volatile ssmp_msg_t *tmpmr = ssmp_recv_buf[from];			\
+  while (!__sync_bool_compare_and_swap(&tmpmr->state, BUF_MESSG, BUF_LOCKD)) { \
+    wait_cycles(WAIT_TIME);						\
+  }									\
+  msg->w0 = tmpmr->w0;							\
+  msg->w1 = tmpmr->w1;							\
+  msg->w2 = tmpmr->w2;							\
+  msg->w3 = tmpmr->w3;							\
+  msg->w4 = tmpmr->w4;							\
+  msg->w5 = tmpmr->w5;							\
+  tmpmr->state = BUF_EMPTY;
+
+
+#define ssmp_sendm(to, msg)						\
+  volatile ssmp_msg_t *tmpm = tmpm = ssmp_send_buf[to];				\
+  while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_LOCKD)) { \
+    wait_cycles(WAIT_TIME);						\
+  }									\
+  tmpm->w0 = msg->w0;							\
+  tmpm->w1 = msg->w1;							\
+  tmpm->w2 = msg->w2;							\
+  tmpm->w3 = msg->w3;							\
+  tmpm->w4 = msg->w4;							\
+  tmpm->w5 = msg->w5;							\
+  tmpm->state = BUF_MESSG;
 
 
 /* ------------------------------------------------------------------------------- */
@@ -72,7 +125,8 @@ typedef struct ssmp_msg {
   int w4;
   int w5;
   int w6;
-  int f[8];
+  int w7;
+  int f[7];
   union {
     unsigned int state;
     unsigned int sender;
@@ -89,9 +143,11 @@ typedef struct {
 
 /*type used for color-based function, i.e. functions that operate on a subset of the cores according to a color function*/
 typedef struct {
-  int num_ues;
-  ssmp_msg_t **buf;
-  int *from;
+  volatile ssmp_msg_t **buf;
+  volatile unsigned int **buf_state;
+  unsigned int *from;
+  unsigned int num_ues;
+  int32_t pad[8];
 } ssmp_color_buf_t;
 
 
@@ -102,6 +158,9 @@ typedef struct {
   ssmp_chk_t * checkpoints; /*the checkpoints array used for sync*/
   unsigned int version; /*the current version of the barrier, used to make a barrier reusable*/
 } ssmp_barrier_t;
+
+volatile extern ssmp_msg_t **ssmp_recv_buf;
+volatile extern ssmp_msg_t **ssmp_send_buf;
 
 
 /* ------------------------------------------------------------------------------- */
@@ -170,7 +229,7 @@ extern inline void ssmp_broadcast_par(int w0, int w1, int w2, int w3); //XXX: fi
 
 /* blocking receive from process from length bytes */
 extern inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length);
-extern inline ssmp_msg_t * ssmp_recv_fromp(int from);
+extern inline volatile ssmp_msg_t * ssmp_recv_fromp(int from);
 extern inline void ssmp_recv_rls(int from);
 extern inline void ssmp_recv_from_sig(int from);
 extern inline void ssmp_recv_from_big(int from, void *data, int length);
@@ -199,8 +258,8 @@ extern inline int ssmp_recv_try6(ssmp_msg_t *msg);
 /* ------------------------------------------------------------------------------- */
 
 /* initialize the color buf data structure to be used with consequent ssmp_recv_color calls. A node is considered a participant if the call to color(ID) returns 1 */
-extern inline void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int));
-extern inline void ssmp_color_buf_free(ssmp_color_buf_t *cbuf);
+extern void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int));
+extern void ssmp_color_buf_free(ssmp_color_buf_t *cbuf);
 
 /* blocking receive from any of the participants according to the color function */
 extern inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length);
@@ -222,10 +281,12 @@ extern inline void ssmp_barrier_wait(int barrier_num);
 /* help funcitons */
 /* ------------------------------------------------------------------------------- */
 extern inline double wtime(void);
+extern inline void wait_cycles(unsigned int cycles);
 extern void set_cpu(int cpu);
 
 typedef uint64_t ticks;
 extern inline ticks getticks(void);
+
 
 extern inline int ssmp_id();
 extern inline int ssmp_num_ues();

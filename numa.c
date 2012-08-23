@@ -18,13 +18,8 @@
 
 #include "common.h"
 #include "ssmp.h"
-#include "ssmp_recv.h"
-#include "ssmp_send.h"
 
-#define COLOR_BUF
-#define USE_MEMCPY
-//#define USE_SIGNAL
-//#define BLOCKING
+#include <numa.h>
 
 int num_procs = 2;
 long long int nm = 100000000;
@@ -41,6 +36,13 @@ int main(int argc, char **argv) {
   ID = 0;
   printf("NUM of processes: %d\n", num_procs);
   printf("NUM of msgs: %lld\n", nm);
+  printf("app guys sending to ID-1!\n");
+
+  if (argc > 3) {
+    int on = atoi(argv[3 + ID]);
+    P("placed on core %d", on);
+    set_cpu(on);
+  }
 
   ssmp_init(num_procs);
 
@@ -58,57 +60,60 @@ int main(int argc, char **argv) {
 
  fork_done:
   ID = rank;
-  set_cpu(ID);
-  ssmp_mem_init(ID, num_procs);
-
-  ssmp_color_buf_t *cbuf = NULL;
-  if (ID % 2 == 0) {
-    cbuf = (ssmp_color_buf_t *) malloc(sizeof(ssmp_color_buf_t));
-    assert(cbuf != NULL);
-    ssmp_color_buf_init(cbuf, color_app);
+  P("Initializing child %u", rank);
+  if (argc > 3) {
+    if (ID) {
+    int on = atoi(argv[3 + ID]);
+    P("placed on core %d", on);
+    set_cpu(on);
+    }
   }
-
-  volatile ssmp_msg_t *msg;
-  msg = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
-  assert(msg != NULL);
+  else {
+    set_cpu(ID);
+  }
+  ssmp_mem_init(ID, num_procs);
+  P("Initialized child %u", rank);
 
   ssmp_barrier_wait(0);
   P("CLEARED barrier %d", 0);
 
-
   double _start = wtime();
   ticks _start_ticks = getticks();
 
-  if (ID % 2 == 0) {
-    while(1) {
-      ssmp_recv_color(cbuf, msg, 24);
+  ssmp_msg_t msg;
+  
+  if (ID % 2 == 1) {
+    P("service core!");
 
-      if (msg->w0 < 0) {
-	P("exiting ..");
+    //    int from = ID+1;
+    int from = ID-1;
+    
+    while(1) {
+      ssmp_recv_from(from, &msg, 24);
+      if (msg.w0 < 0) {
+	int co;
+	for (co = 0; co < ssmp_num_ues(); co++) {
+	  //P("from[%d] = %d", co, from[co]);
+	}
+	P("exiting..");
 	exit(0);
       }
-      //ssmp_send(msg->sender, msg, 8);
-      //      ssmp_sendm(msg->sender, msg);
-      ssmp_send_inline(msg->sender, msg);
+      
     }
   }
   else {
-    unsigned int to = ID-1;
+    P("app core!");
+    //int to = ID-1;
+    int to = ID+1;
     long long int nm1 = nm;
+    
     while (nm1--) {
-      to = (to + 2) % num_procs;
-
-      msg->w0 = nm1;
-      //      ssmp_send(to, msg, 24);
-      //      ssmp_recv_from(to, msg, 24);
-      //      ssmp_sendm(to, msg);
-      //      ssmp_recv_fromm(to, msg);
-      ssmp_send_inline(to, msg);
-      ssmp_recv_from_inline(to, msg);
-      if (msg->w0 != nm1) {
-	P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
-      }
+      msg.w0 = nm1;
+      ssmp_send(to, &msg, 24);
+      //      ssmp_recv_from(to, &msg);
     }
+
+
   }
 
   
@@ -130,17 +135,11 @@ int main(int argc, char **argv) {
 	 _ticks, _ticksm);
 
 
+
   ssmp_barrier_wait(1);
-  if (ssmp_id() == 1) {
-    P("terminating --");
-    int core; 
-    for (core = 0; core < ssmp_num_ues(); core++) {
-      if (core % 2 == 0) {
-	ssmp_msg_t s; s.w0 = -1;
-	ssmp_send(core, &s, 24);
-      }
-    }
-  }
+  int ex = -1;
+  ssmp_send(ssmp_id() + 1, (ssmp_msg_t *) &ex, sizeof(int));
+
 
   ssmp_term();
   return 0;

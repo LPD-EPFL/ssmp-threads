@@ -1,38 +1,39 @@
 #include "ssmp.h"
 
-extern ssmp_msg_t **ssmp_recv_buf;
-extern ssmp_msg_t **ssmp_send_buf;
+extern volatile ssmp_msg_t **ssmp_recv_buf;
+extern volatile ssmp_msg_t **ssmp_send_buf;
 extern ssmp_chunk_t **ssmp_chunk_buf;
 extern int ssmp_num_ues_;
 extern int ssmp_id_;
 extern int last_recv_from;
 extern ssmp_barrier_t *ssmp_barrier;
-static ssmp_msg_t *tmpm;
 
 /* ------------------------------------------------------------------------------- */
 /* receiving functions : default is blocking */
 /* ------------------------------------------------------------------------------- */
 
 inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length) {
-  tmpm = ssmp_recv_buf[from];
+  volatile ssmp_msg_t *tmpm = ssmp_recv_buf[from];
 #ifdef USE_ATOMIC  
-  while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_MESSG, BUF_MESSG)) {
-    _mm_pause();
+  while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_MESSG, BUF_LOCKD)) {
+    wait_cycles(WAIT_TIME);
   }
 #else
   while(tmpm->state == BUF_EMPTY);
 #endif
-
-  CPY_LLINTS(msg, tmpm, length);
+  msg->w0 = tmpm->w0;				
+  msg->w1 = tmpm->w1;				
+  msg->w2 = tmpm->w2;				
+  msg->w3 = tmpm->w3;				
+  msg->w4 = tmpm->w4;				
+  msg->w5 = tmpm->w5;				
+  //  CPY_LLINTS(msg, tmpm, length);
   tmpm->state = BUF_EMPTY;
 
-  //  msg->sender = from; //do not set the sender of the msg since we know him :)
-
-  PD("recved from %d\n", from);
 }
 
-inline ssmp_msg_t * ssmp_recv_fromp(int from) {
-  tmpm = ssmp_recv_buf[from];
+inline volatile ssmp_msg_t * ssmp_recv_fromp(int from) {
+  volatile ssmp_msg_t *tmpm = ssmp_recv_buf[from];
   PD("recv from %d\n", from);
   while(!tmpm->state);
 
@@ -44,7 +45,7 @@ inline void ssmp_recv_rls(int from) {
 }
 
 inline void ssmp_recv_from_sig(int from) {
-  tmpm = ssmp_recv_buf[from];
+  volatile ssmp_msg_t *tmpm = ssmp_recv_buf[from];
   while(!tmpm->state);
   tmpm->state = 0;
 
@@ -122,21 +123,33 @@ inline int ssmp_recv_try(ssmp_msg_t *msg, int length) {
 }
 
 
-inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length) {
-  int from;
+void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length) {
+  unsigned int from;
+  unsigned int num_ues = cbuf->num_ues;
+  volatile unsigned int **cbuf_state = cbuf->buf_state;
   while(1) {
     //XXX: maybe have a last_recv_from field
-    for (from = 0; from < cbuf->num_ues; from++) {
+    for (from = 0; from < num_ues; from++) {
 
-#ifdef USE_ATOMIC  
-      if(__sync_bool_compare_and_swap(&cbuf->buf[from]->state, BUF_MESSG, BUF_MESSG)) {
+#ifdef USE_ATOMIC
+      //      if(__sync_bool_compare_and_swap(&cbuf_buf[from]->state, BUF_MESSG, BUF_LOCKD)) {
+      if(__sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD)) {
 #else
-      if (cbuf->buf[from]->state) {
+      if (cbuf->buf[from]->state == BUF_MESSG) {
 #endif
-	CPY_LLINTS(msg, cbuf->buf[from], length);
-
+	//CPY_LLINTS(msg, cbuf->buf[from], length);
+	volatile ssmp_msg_t *tmpm = cbuf->buf[from];
+	msg->w0 = tmpm->w0;				
+	msg->w1 = tmpm->w1;				
+	msg->w2 = tmpm->w2;				
+	msg->w3 = tmpm->w3;				
+	msg->w4 = tmpm->w4;				
+	msg->w5 = tmpm->w5;				
+	msg->w6 = tmpm->w6;
+	msg->w7 = tmpm->w7;
 	msg->sender = cbuf->from[from];
-	cbuf->buf[from]->state = BUF_EMPTY;
+
+	tmpm->state = BUF_EMPTY;
 	return;
       }
     }
@@ -145,7 +158,7 @@ inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length)
 
 
 inline void ssmp_recv_from4(int from, ssmp_msg_t *msg) {
-  ssmp_msg_t *m = ssmp_recv_buf[from];
+  volatile ssmp_msg_t *m = ssmp_recv_buf[from];
   PD("recv from %d\n", from);
   while(!m->state);
 
@@ -160,7 +173,7 @@ inline void ssmp_recv_from4(int from, ssmp_msg_t *msg) {
 }
 
 inline void ssmp_recv_from6(int from, ssmp_msg_t *msg) {
-  ssmp_msg_t *m = ssmp_recv_buf[from];
+  volatile ssmp_msg_t *m = ssmp_recv_buf[from];
   PD("recv from %d\n", from);
   while(!m->state);
 
@@ -180,7 +193,7 @@ inline void ssmp_recv_from6(int from, ssmp_msg_t *msg) {
 
 
 inline int ssmp_recv_from_try1(int from, ssmp_msg_t *msg) {
-  ssmp_msg_t *m = ssmp_recv_buf[from];
+  volatile ssmp_msg_t *m = ssmp_recv_buf[from];
   PD("recv from %d\n", from);
   if (m->state) {
 
@@ -195,7 +208,7 @@ inline int ssmp_recv_from_try1(int from, ssmp_msg_t *msg) {
 }
 
 inline int ssmp_recv_from_try4(int from, ssmp_msg_t *msg) {
-  ssmp_msg_t *m = ssmp_recv_buf[from];
+  volatile ssmp_msg_t *m = ssmp_recv_buf[from];
   PD("recv from %d\n", from);
   if (m->state) {
 
@@ -214,7 +227,7 @@ inline int ssmp_recv_from_try4(int from, ssmp_msg_t *msg) {
 
 
 inline int ssmp_recv_from_try6(int from, ssmp_msg_t *msg) {
-  ssmp_msg_t *m = ssmp_recv_buf[from];
+  volatile ssmp_msg_t *m = ssmp_recv_buf[from];
   PD("recv from %d\n", from);
   if (m->state) {
 

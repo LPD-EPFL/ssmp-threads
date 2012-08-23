@@ -15,20 +15,52 @@
 #include <fcntl.h>
 #include <sched.h>
 #include <assert.h>
+#include <emmintrin.h>
 
 #include "common.h"
 #include "ssmp.h"
-#include "ssmp_recv.h"
-#include "ssmp_send.h"
 
-#define COLOR_BUF
-#define USE_MEMCPY
-//#define USE_SIGNAL
-//#define BLOCKING
+#define NO_MSG 0
+#define MSG 1
+#define LOCKED 7
+
+#define MFENCE() asm volatile("mfence")
+
+static inline void valset(volatile unsigned int *point, int ret) {
+  __asm__ __volatile__("xchgl %1, %0"
+                       : "=r"(ret)
+                       : "m"(*point), "0"(ret)
+                       : "memory");
+}
+
+static inline void wait_cycles(unsigned int cycles) {
+  cycles /= 6;
+  while (cycles--) {
+      _mm_pause();
+  }
+}
+
+typedef struct ticket_lock {
+  unsigned int current;
+  unsigned int ticket;
+} ticket_lock_t;
+
+inline void tlock(ticket_lock_t * lock) {
+  unsigned int ticket = __sync_add_and_fetch(&lock->ticket, 1);
+  //  P("got ticket %d", ticket);
+  while (ticket != lock->current);
+}
+
+inline void tunlock(ticket_lock_t * lock) {
+  lock->current++;
+    //__sync_add_and_fetch(&lock->current, 1);
+  //  P("releasing %d", lock->current - 1);
+}
+
 
 int num_procs = 2;
 long long int nm = 100000000;
-int ID;
+int ID, wcycles = 30;
 
 int main(int argc, char **argv) {
   if (argc > 1) {
@@ -37,10 +69,22 @@ int main(int argc, char **argv) {
   if (argc > 2) {
     nm = atol(argv[2]);
   }
+  if (argc > 3) {
+    wcycles = atoi(argv[3]);
+  }
+  P("wait cycles = %d", wcycles);
 
   ID = 0;
   printf("NUM of processes: %d\n", num_procs);
   printf("NUM of msgs: %lld\n", nm);
+  printf("app guys trying to lock a single lock!\n");
+
+  ticket_lock_t *lock = (ticket_lock_t *) mmap(0,sizeof(ticket_lock_t),PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);
+  assert(lock != NULL);
+
+  lock->current = 1;
+  lock->ticket = 0;
+
 
   ssmp_init(num_procs);
 
@@ -58,59 +102,30 @@ int main(int argc, char **argv) {
 
  fork_done:
   ID = rank;
-  set_cpu(ID);
+  if (argc > 4) {
+    int on = atoi(argv[4 + ID]);
+    P("placed on core %d", on);
+    set_cpu(on);
+  }
+  else {
+    set_cpu(ID);
+  }
   ssmp_mem_init(ID, num_procs);
 
-  ssmp_color_buf_t *cbuf = NULL;
-  if (ID % 2 == 0) {
-    cbuf = (ssmp_color_buf_t *) malloc(sizeof(ssmp_color_buf_t));
-    assert(cbuf != NULL);
-    ssmp_color_buf_init(cbuf, color_app);
-  }
-
-  volatile ssmp_msg_t *msg;
-  msg = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
-  assert(msg != NULL);
-
   ssmp_barrier_wait(0);
-  P("CLEARED barrier %d", 0);
 
+  long long int nm1 = nm;
 
   double _start = wtime();
   ticks _start_ticks = getticks();
 
-  if (ID % 2 == 0) {
-    while(1) {
-      ssmp_recv_color(cbuf, msg, 24);
 
-      if (msg->w0 < 0) {
-	P("exiting ..");
-	exit(0);
-      }
-      //ssmp_send(msg->sender, msg, 8);
-      //      ssmp_sendm(msg->sender, msg);
-      ssmp_send_inline(msg->sender, msg);
-    }
+  while (nm1--) {
+    tlock(lock);
+    wait_cycles(wcycles);
+    tunlock(lock);
+
   }
-  else {
-    unsigned int to = ID-1;
-    long long int nm1 = nm;
-    while (nm1--) {
-      to = (to + 2) % num_procs;
-
-      msg->w0 = nm1;
-      //      ssmp_send(to, msg, 24);
-      //      ssmp_recv_from(to, msg, 24);
-      //      ssmp_sendm(to, msg);
-      //      ssmp_recv_fromm(to, msg);
-      ssmp_send_inline(to, msg);
-      ssmp_recv_from_inline(to, msg);
-      if (msg->w0 != nm1) {
-	P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
-      }
-    }
-  }
-
   
 
   ticks _end_ticks = getticks();
@@ -130,17 +145,8 @@ int main(int argc, char **argv) {
 	 _ticks, _ticksm);
 
 
-  ssmp_barrier_wait(1);
-  if (ssmp_id() == 1) {
-    P("terminating --");
-    int core; 
-    for (core = 0; core < ssmp_num_ues(); core++) {
-      if (core % 2 == 0) {
-	ssmp_msg_t s; s.w0 = -1;
-	ssmp_send(core, &s, 24);
-      }
-    }
-  }
+  ssmp_barrier_wait(0);
+
 
   ssmp_term();
   return 0;

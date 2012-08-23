@@ -15,17 +15,31 @@
 #include <fcntl.h>
 #include <sched.h>
 #include <assert.h>
+#include <emmintrin.h>
 
 #include "common.h"
 #include "ssmp.h"
-#include "ssmp_send.h"
-#include "ssmp_recv.h"
+
+#define MFENCE() asm volatile("mfence")
+
+static inline void valset(volatile unsigned int *point, int ret) {
+  __asm__ __volatile__("xchgl %1, %0"
+                       : "=r"(ret)
+                       : "m"(*point), "0"(ret)
+                       : "memory");
+}
+
+#define valget(a,b) asm( "xchg %0, %1" : "=r" (a) , "=mr" (b) : "0" (a),  "1" (b) );
+
+static inline void nswait(unsigned long long int ns) {
+  long long int tticks = getticks() + (ns*2.1);
+  while (getticks() < tticks);
+}
+
 
 int num_procs = 2;
 long long int nm = 100000000;
-int ID, on;
-
-#define USE_INLINE_
+int ID;
 
 int main(int argc, char **argv) {
   if (argc > 1) {
@@ -40,25 +54,16 @@ int main(int argc, char **argv) {
   printf("NUM of msgs: %lld\n", nm);
   printf("app guys sending to ID-1!\n");
 
-#if defined(USE_INLINE)
-  P("using INLINE");
-#elif defined(USE_MACRO)
-  P("using MACRO");
-#else      
-  P("using NORMAL");
-#endif
-
-
-  if (argc > 3) {
-    on = atoi(argv[3 + ID]);
-    P("placed on core %d", on);
-    set_cpu(on);
-  }
-
   ssmp_init(num_procs);
+
+  ssmp_msg_t *comb = (ssmp_msg_t *) mmap(0,2 * sizeof(ssmp_msg_t),PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);
+  assert(comb != NULL);
+  comb[0].state = 0;
+  comb[1].state = 0;
 
   int rank;
   for (rank = 1; rank < num_procs; rank++) {
+    P("Forking child %d", rank);
     pid_t child = fork();
     if (child < 0) {
       P("Failure in fork():\n%s", strerror(errno));
@@ -72,11 +77,9 @@ int main(int argc, char **argv) {
   ID = rank;
   P("Initializing child %u", rank);
   if (argc > 3) {
-    if (ID > 0) {
-      on = atoi(argv[3 + ID]);
-      P("placed on core %d", on);
-      set_cpu(on);
-    }
+    int on = atoi(argv[3 + ID]);
+    P("placed on core %d", on);
+    set_cpu(on);
   }
   else {
     set_cpu(ID);
@@ -84,70 +87,50 @@ int main(int argc, char **argv) {
   ssmp_mem_init(ID, num_procs);
   P("Initialized child %u", rank);
 
+
+  srand(time(NULL));
   ssmp_barrier_wait(0);
-  P("CLEARED barrier %d", 0);
+
 
   double _start = wtime();
   ticks _start_ticks = getticks();
 
-  volatile  ssmp_msg_t *msgp;
-  msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
-  assert(msgp != NULL);
+  ssmp_msg_t msg;
+  unsigned int cur = 0;
+  unsigned int p = 0;
+
+#define NO_MSG 0
+#define MSG 1
+#define WRT 2
+#define RD 3
+
+
+  unsigned long long int times = 0, ttimes = 0, times4 = 0;
   
-  if (ID % 2 == 0) {
-    P("service core!");
 
-    unsigned int from = ID+1;
-    unsigned int old = nm-1;
+
+#define LOCKED 11
+#define FREE 0
+  comb[cur].state = FREE;
+
+  long long int nm1 = nm;
     
-    while(1) {
-#if defined(USE_INLINE)
-      ssmp_recv_from_inline(from, msgp);
-#elif defined(USE_MACRO)
-      ssmp_recv_fromm(from, msgp);
-#else      
-      ssmp_recv_from(from, msgp, 24);
-#endif
-
-      _mm_mfence();
-
-      if (msgp->w0 < 0) {
-	P("exiting..");
-	exit(0);
-      }
-      if (msgp->w0 != old) {
-	PRINT("w0 -- expected %d, got %d", old, msgp->w0);
-      }
-      if (msgp->w5 != old) {
-	PRINT("w5 -- expected %d, got %d", old, msgp->w5);
-      }
-      old--;
-	      
+  while (nm1--) {
+      
+    while (!__sync_bool_compare_and_swap(&comb[cur].state, ID, LOCKED)) {
+      times++;
+      //      _mm_pause();
+    }
+    //    msg.w0 = nm1; 
+    comb[cur].state = !ID;
+    //    memcpy(&comb[cur], &msg, 64);
+    ttimes += times;
+    times = 0;
+    if (nm1 == 1 && ID) {
+      break;
     }
   }
-  else {
-    P("app core!");
-    unsigned int to = ID-1;
-    long long int nm1 = nm;
-    
-    while (nm1--) {
-      msgp->w0 = nm1;
-      msgp->w1 = nm1;
-      msgp->w2 = nm1;
-      msgp->w3 = nm1;
-      msgp->w4 = nm1;
-      msgp->w5 = nm1;
 
-#if defined(USE_INLINE)
-      ssmp_send_inline(to, msgp);
-#elif defined(USE_MACRO)
-      ssmp_sendm(to, msgp);
-#else      
-      ssmp_send(to, msgp, 24);
-#endif
-      _mm_mfence();
-    }
-  }
 
   
 
@@ -169,11 +152,9 @@ int main(int argc, char **argv) {
 
 
 
-  ssmp_barrier_wait(1);
-  if (ssmp_id() % 2) {
-    int ex[16]; ex[0] = -1;
-    ssmp_send(ssmp_id() - 1, (ssmp_msg_t *) &ex, sizeof(long long int));
-  }
+  ssmp_barrier_wait(0);
+
+  P("avg times\t= %0.3f", ttimes, ((double)ttimes)/nm);
 
   ssmp_term();
   return 0;
