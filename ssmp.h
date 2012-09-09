@@ -241,6 +241,7 @@ extern inline void ssmp_recv_from6(int from, ssmp_msg_t *msg);
 /* non-blocking receive from process from
    returns 1 if recved msg, else 0 */
 extern inline int ssmp_recv_from_try(int from, ssmp_msg_t *msg, int length);
+extern inline uint32_t ssmp_recv_from_test(uint32_t from);
 extern inline int ssmp_recv_from_try1(int from, ssmp_msg_t *msg);
 extern inline int ssmp_recv_from_try6(int from, ssmp_msg_t *msg);
 /* blocking receive from any proc. 
@@ -265,6 +266,7 @@ extern void ssmp_color_buf_free(ssmp_color_buf_t *cbuf);
 
 /* blocking receive from any of the participants according to the color function */
 extern inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length);
+extern inline uint32_t ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_from);
 extern inline void ssmp_recv_color4(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg);
 extern inline void ssmp_recv_color6(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg);
 

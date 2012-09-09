@@ -92,6 +92,12 @@ inline int ssmp_recv_from_try(int from, ssmp_msg_t *msg, int length) {
   return 0;
 }
 
+inline uint32_t
+ssmp_recv_from_test(uint32_t from) 
+{
+  volatile ssmp_msg_t *tmpm = ssmp_recv_buf[from];
+  return (tmpm->state == BUF_MESSG);
+}
 
 inline void ssmp_recv(ssmp_msg_t *msg, int length) {
   while(1) {
@@ -122,39 +128,81 @@ inline int ssmp_recv_try(ssmp_msg_t *msg, int length) {
   return 0;
 }
 
-
-void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length) {
+inline void 
+ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length)
+{
   unsigned int from;
   unsigned int num_ues = cbuf->num_ues;
   volatile unsigned int **cbuf_state = cbuf->buf_state;
-  while(1) {
-    //XXX: maybe have a last_recv_from field
-    for (from = 0; from < num_ues; from++) {
+  while(1)
+    {
+      //XXX: maybe have a last_recv_from field
+      for (from = 0; from < num_ues; from++) 
+	{
 
 #ifdef USE_ATOMIC
-      //      if(__sync_bool_compare_and_swap(&cbuf_buf[from]->state, BUF_MESSG, BUF_LOCKD)) {
-      if(__sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD)) {
+	  if(__sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD))
 #else
-      if (cbuf->buf[from]->state == BUF_MESSG) {
+	    if (cbuf->buf[from]->state == BUF_MESSG)
 #endif
-	//CPY_LLINTS(msg, cbuf->buf[from], length);
-	volatile ssmp_msg_t *tmpm = cbuf->buf[from];
-	msg->w0 = tmpm->w0;				
-	msg->w1 = tmpm->w1;				
-	msg->w2 = tmpm->w2;				
-	msg->w3 = tmpm->w3;				
-	msg->w4 = tmpm->w4;				
-	msg->w5 = tmpm->w5;				
-	msg->w6 = tmpm->w6;
-	msg->w7 = tmpm->w7;
-	msg->sender = cbuf->from[from];
+	      {
+		//CPY_LLINTS(msg, cbuf->buf[from], length);
+		volatile ssmp_msg_t *tmpm = cbuf->buf[from];
+		msg->w0 = tmpm->w0;				
+		msg->w1 = tmpm->w1;				
+		msg->w2 = tmpm->w2;				
+		msg->w3 = tmpm->w3;				
+		msg->w4 = tmpm->w4;				
+		msg->w5 = tmpm->w5;				
+		msg->w6 = tmpm->w6;
+		msg->w7 = tmpm->w7;
+		msg->sender = cbuf->from[from];
 
-	tmpm->state = BUF_EMPTY;
-	return;
-      }
+		tmpm->state = BUF_EMPTY;
+		return;
+	      }
+	}
     }
+}
+
+
+inline uint32_t
+ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_from)
+{
+  uint32_t from = start_from;
+  uint32_t num_ues = cbuf->num_ues;
+  //  printf("starting recv from %d (num_ues is %d)\n", from, num_ues);
+  volatile unsigned int **cbuf_state = cbuf->buf_state;
+  while(1) {
+    for (; from < num_ues; from++)
+      {
+
+#ifdef USE_ATOMIC
+	if(__sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD))
+#else
+	  if (cbuf->buf[from]->state == BUF_MESSG)
+#endif
+	    {
+	      //CPY_LLINTS(msg, cbuf->buf[from], length);
+	      volatile ssmp_msg_t *tmpm = cbuf->buf[from];
+	      msg->w0 = tmpm->w0;				
+	      msg->w1 = tmpm->w1;				
+	      msg->w2 = tmpm->w2;				
+	      msg->w3 = tmpm->w3;				
+	      msg->w4 = tmpm->w4;				
+	      msg->w5 = tmpm->w5;				
+	      msg->w6 = tmpm->w6;
+	      msg->w7 = tmpm->w7;
+	      msg->sender = cbuf->from[from];
+
+	      tmpm->state = BUF_EMPTY;
+	      return from;
+	    }
+      }
+    from = 0;
   }
 }
+
 
 
 inline void ssmp_recv_from4(int from, ssmp_msg_t *msg) {
