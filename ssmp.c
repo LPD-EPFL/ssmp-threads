@@ -91,10 +91,6 @@ void ssmp_init(int num_procs)
 #define P(s, t) printf("[%02d] ", id); printf(s, t); printf("\n"); fflush(stdout)
 
 void ssmp_mem_init(int id, int num_ues) {
-#ifdef PLATFORM_NUMA
-  SP("\t\t\tcore %02d -> tnuma_set_preferred(%d)", id, id/6);
-  numa_set_preferred(id/6);  
-#endif /* PLATFORM_NUMA */
   ssmp_id_ = id;
   ssmp_num_ues_ = num_ues;
   last_recv_from = (id + 1) % num_ues;
@@ -231,13 +227,14 @@ void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int)) {
       exit(-1);
     }
   }
-  unsigned int *participants = (unsigned int *) malloc(ssmp_num_ues_ * sizeof(unsigned int));
+
+  uint32_t *participants = (uint32_t *) malloc(ssmp_num_ues_ * sizeof(uint32_t));
   if (participants == NULL) {
     perror("malloc @ ssmp_color_buf_init");
     exit(-1);
   }
 
-  int ue, num_ues = 0;
+  uint32_t ue, num_ues = 0;
   for (ue = 0; ue < ssmp_num_ues_; ue++) {
     if (ue == ssmp_id_) {
       participants[ue] = 0;
@@ -252,42 +249,50 @@ void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int)) {
 
   cbuf->num_ues = num_ues;
 
-  unsigned int size_buf = num_ues * sizeof(ssmp_msg_t *);
-  unsigned int size_pad = 0;
+  uint32_t size_buf = num_ues * sizeof(ssmp_msg_t *);
+  uint32_t size_pad = 0;
 
-  if (size_buf % SSMP_CACHE_LINE_SIZE) {
-    size_pad = (SSMP_CACHE_LINE_SIZE - (size_buf % SSMP_CACHE_LINE_SIZE)) / sizeof(ssmp_msg_t *);
-    //unsigned int size_old = size_buf;
-    size_buf += size_pad * sizeof(ssmp_msg_t *);
-  }
+  if (size_buf % SSMP_CACHE_LINE_SIZE)
+    {
+      size_pad = (SSMP_CACHE_LINE_SIZE - (size_buf % SSMP_CACHE_LINE_SIZE)) / sizeof(ssmp_msg_t *);
+      size_buf += size_pad * sizeof(ssmp_msg_t *);
+    }
 
   cbuf->buf = (volatile ssmp_msg_t **) malloc(size_buf);
-  if (cbuf->buf == NULL) {
-    perror("malloc @ ssmp_color_buf_init");
-    exit(-1);
-  }
+  if (cbuf->buf == NULL)
+    {
+      perror("malloc @ ssmp_color_buf_init");
+      exit(-1);
+    }
 
-  cbuf->buf_state = (volatile unsigned int **) malloc(size_buf);
-  if (cbuf->buf_state == NULL) {
-    perror("malloc @ ssmp_color_buf_init");
-    exit(-1);
-  }
   
-  cbuf->from = (unsigned int *) malloc(num_ues * sizeof(unsigned int));
-  if (cbuf->from == NULL) {
-    perror("malloc @ ssmp_color_buf_init");
-    exit(-1);
-  }
+  uint32_t size_from = num_ues * sizeof(uint32_t);
+
+  if (size_from % SSMP_CACHE_LINE_SIZE)
+    {
+      size_pad = (SSMP_CACHE_LINE_SIZE - (size_from % SSMP_CACHE_LINE_SIZE)) / sizeof(uint32_t);
+      size_from += size_pad * sizeof(uint32_t);
+    }
+
+
+  cbuf->from = (uint32_t *) malloc(size_from);
+  if (cbuf->from == NULL)
+    {
+      perror("malloc @ ssmp_color_buf_init");
+      exit(-1);
+    }
     
-  int buf_num = 0;
-  for (ue = 0; ue < ssmp_num_ues_; ue++) {
-      if (participants[ue]) {
-	cbuf->buf[buf_num] = ssmp_recv_buf[ue];
-	cbuf->buf_state[buf_num] = &ssmp_recv_buf[ue]->state;
-	cbuf->from[buf_num] = ue;
-	buf_num++;
-      }
-  }
+  uint32_t buf_num = 0;
+  for (ue = 0; ue < ssmp_num_ues_; ue++)
+    {
+      if (participants[ue])
+	{
+	  cbuf->buf[buf_num] = ssmp_recv_buf[ue];
+	  /* cbuf->buf_state[buf_num] = &ssmp_recv_buf[ue]->state; */
+	  cbuf->from[buf_num] = ue;
+	  buf_num++;
+	}
+    }
 
   free(participants);
 }
@@ -438,11 +443,23 @@ inline double wtime(void)
   return (double)t.tv_sec + ((double)t.tv_usec)/1000000.0;
 }
 
-inline void wait_cycles(unsigned int cycles) {
-  cycles /= 6;
-  while (cycles--) {
-      _mm_pause();
-  }
+inline void 
+wait_cycles(uint32_t cycles)
+{
+  if (cycles < 512)
+    {
+      cycles /= 6;
+      while (cycles--)
+	{
+	  _mm_pause();
+	}
+    }
+  else
+    {
+      ticks _start_ticks = getticks();
+      ticks _end_ticks = _start_ticks + cycles - 130;
+      while (getticks() < _end_ticks);
+    }
 }
 
 void set_cpu(int cpu) {
@@ -454,6 +471,11 @@ void set_cpu(int cpu) {
 	   strerror(errno));
     exit(3);
   }
+
+#ifdef PLATFORM_NUMA
+  SP("\t\t\tcore %02d -> tnuma_set_preferred(%d)", cpu, cpu/6);
+  numa_set_preferred(cpu/6);  
+#endif /* PLATFORM_NUMA */
   
 }
 
