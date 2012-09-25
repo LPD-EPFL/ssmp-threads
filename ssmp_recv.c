@@ -12,19 +12,23 @@ extern ssmp_barrier_t *ssmp_barrier;
 /* receiving functions : default is blocking */
 /* ------------------------------------------------------------------------------- */
 
-inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length) {
-  volatile ssmp_msg_t *tmpm = ssmp_recv_buf[from];
-#ifdef USE_ATOMIC  
+inline void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg, uint32_t length) {
+  volatile ssmp_msg_t* tmpm = ssmp_recv_buf[from];
+  PREFETCHW(tmpm);
+
+#ifdef USE_ATOMIC
   while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_MESSG, BUF_LOCKD)) {
     wait_cycles(WAIT_TIME);
   }
 #else
-  while(tmpm->state == BUF_EMPTY);
+  while(tmpm->state != BUF_MESSG) 
+    {
+      PREFETCHW(tmpm);
+    }
 #endif
   
   CPY_LLINTS(msg, tmpm, length);
   tmpm->state = BUF_EMPTY;
-
 }
 
 inline volatile ssmp_msg_t * ssmp_recv_fromp(int from) {
@@ -126,9 +130,10 @@ inline int ssmp_recv_try(ssmp_msg_t *msg, int length) {
 inline void 
 ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length)
 {
-  unsigned int from;
-  unsigned int num_ues = cbuf->num_ues;
-  volatile unsigned int **cbuf_state = cbuf->buf_state;
+  uint32_t from;
+  uint32_t num_ues = cbuf->num_ues;
+  volatile uint32_t** cbuf_state = cbuf->buf_state;
+  volatile ssmp_msg_t** buf = cbuf->buf;
   while(1)
     {
       //XXX: maybe have a last_recv_from field
@@ -138,7 +143,7 @@ ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length)
 #ifdef USE_ATOMIC
 	  if(__sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD))
 #else
-	    if (cbuf->buf[from]->state == BUF_MESSG)
+	    if (*cbuf_state[from] == BUF_MESSG)
 #endif
 	      {
 		volatile ssmp_msg_t* tmpm = cbuf->buf[from];
@@ -158,16 +163,17 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_fr
 {
   uint32_t from = start_from;
   uint32_t num_ues = cbuf->num_ues;
+  volatile uint32_t** cbuf_state = cbuf->buf_state;
+  volatile ssmp_msg_t** buf = cbuf->buf;
 
-  volatile unsigned int **cbuf_state = cbuf->buf_state;
   while(1) {
     for (; from < num_ues; from++)
       {
-
 #ifdef USE_ATOMIC
 	if(__sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD))
 #else
-	  if (cbuf->buf[from]->state == BUF_MESSG)
+	PREFETCHW(buf[from]);
+	if (*cbuf_state[from] == BUF_MESSG)
 #endif
 	    {
 	      volatile ssmp_msg_t* tmpm = cbuf->buf[from];

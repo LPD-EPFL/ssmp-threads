@@ -4,6 +4,7 @@
 *~
 /.nfs00000000085a1c9200000058
 /.tmp
+/a.out
 /barrier
 /cas_stresh
 /color_buf
@@ -19,14 +20,17 @@
 /mpmap.out.new
 /numactl.before.mem.modules
 /o
+/one2one.S
 /one2one_atomic
 /one2one_i
 /one2one_int
 /one2one_lli
 /one2one_manual
+/one2one_manual_manual
 /one2one_manual_old_msg_t
 /one2one_mem
 /one2one_memcpy
+/one2one_na
 /one2one_no_m
 /one2one_numa
 /one2one_recv

@@ -14,14 +14,19 @@ static volatile ssmp_msg_t *tmpm;
 /* ------------------------------------------------------------------------------- */
 
 
-inline void ssmp_send(int to, ssmp_msg_t *msg, int length) {
+inline void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, uint32_t length) {
   volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
+  PREFETCHW(tmpm);
+
 #ifdef USE_ATOMIC
   while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_LOCKD)) {
     wait_cycles(WAIT_TIME);
   }
 #else 
-  while(tmpm->state == BUF_MESSG);
+  while (tmpm->state != BUF_EMPTY)
+    {
+      PREFETCHW(tmpm);
+    }
 #endif
 
   CPY_LLINTS(tmpm, msg, length);

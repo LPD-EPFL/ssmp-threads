@@ -38,6 +38,14 @@
 #define PD(args...) 
 #endif
 
+#ifndef ALIGNED
+#  if __GNUC__ && !SCC
+#    define ALIGNED(N) __attribute__ ((aligned (N)))
+#  else
+#    define ALIGNED(N)
+#  endif
+#endif
+
 #define USE_MEMCPY
 
 #ifdef USE_MEMCPY
@@ -119,7 +127,7 @@
 typedef int ssmp_chk_t; /*used for the checkpoints*/
 
 /*msg type: contains 15 words of data and 1 word flag*/
-typedef struct ssmp_msg {
+typedef struct ALIGNED(64) ssmp_msg {
   int w0;
   int w1;
   int w2;
@@ -130,8 +138,8 @@ typedef struct ssmp_msg {
   int w7;
   int f[7];
   union {
-    unsigned int state;
-    unsigned int sender;
+    volatile uint32_t state;
+    volatile uint32_t sender;
   };
 
   //  unsigned int sender;
@@ -144,26 +152,29 @@ typedef struct {
 } ssmp_chunk_t;
 
 /*type used for color-based function, i.e. functions that operate on a subset of the cores according to a color function*/
-typedef struct {
-  volatile ssmp_msg_t **buf;
-  volatile unsigned int **buf_state;
-  unsigned int *from;
-  unsigned int num_ues;
-  int32_t pad[8];
+typedef ALIGNED(64) struct {
+  uint64_t num_ues;
+  volatile uint32_t** buf_state;
+  volatile ssmp_msg_t** buf;
+  uint32_t* from;
+  /* int32_t pad[8]; */
 } ssmp_color_buf_t;
 
 
 /*barrier type*/
 typedef struct {
-  long long unsigned int participants; /*the participants of a barrier can be given either by this, as bits (0 -> no, 1 ->participate */
+  uint64_t participants;                  /*the participants of a barrier can be given either by this, as bits (0 -> no, 1 ->participate */
   int (*color)(int); /*or as a color function: if the function return 0 -> no participant, 1 -> participant. The color function has priority over the lluint participants*/
   ssmp_chk_t * checkpoints; /*the checkpoints array used for sync*/
-  unsigned int version; /*the current version of the barrier, used to make a barrier reusable*/
+  uint32_t version; /*the current version of the barrier, used to make a barrier reusable*/
 } ssmp_barrier_t;
 
 volatile extern ssmp_msg_t **ssmp_recv_buf;
 volatile extern ssmp_msg_t **ssmp_send_buf;
 
+#define PREFETCHW(x) asm volatile("prefetchw %0" :: "m" (*(unsigned long *)x))
+#define PREFETCH(x) asm volatile("prefetch %0" :: "m" (*(unsigned long *)x))
+#define PREFETCHNTA(x) asm volatile("prefetchnta %0" :: "m" (*(unsigned long *)x))
 
 /* ------------------------------------------------------------------------------- */
 /* init / term the MP system */
@@ -182,7 +193,7 @@ extern void ssmp_term(void);
 
 /* blocking send length words to to */
 /* blocking in the sense that the data are copied to the receiver's buffer */
-extern inline void ssmp_send(int to, ssmp_msg_t *msg, int length);
+extern inline void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, uint32_t length);
 extern inline void ssmp_send_sig(int to);
 extern inline void ssmp_send_big(int to, void *data, int length);
 
@@ -230,7 +241,7 @@ extern inline void ssmp_broadcast_par(int w0, int w1, int w2, int w3); //XXX: fi
 /* ------------------------------------------------------------------------------- */
 
 /* blocking receive from process from length bytes */
-extern inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length);
+extern inline void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg, uint32_t length);
 extern inline volatile ssmp_msg_t * ssmp_recv_fromp(int from);
 extern inline void ssmp_recv_rls(int from);
 extern inline void ssmp_recv_from_sig(int from);
