@@ -265,6 +265,11 @@ void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int)) {
       exit(-1);
     }
 
+  cbuf->buf_state = (volatile unsigned int **) malloc(size_buf);
+  if (cbuf->buf_state == NULL) {
+    perror("malloc @ ssmp_color_buf_init");
+    exit(-1);
+  }
   
   uint32_t size_from = num_ues * sizeof(uint32_t);
 
@@ -288,7 +293,7 @@ void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int)) {
       if (participants[ue])
 	{
 	  cbuf->buf[buf_num] = ssmp_recv_buf[ue];
-	  /* cbuf->buf_state[buf_num] = &ssmp_recv_buf[ue]->state; */
+	  cbuf->buf_state[buf_num] = &ssmp_recv_buf[ue]->state;
 	  cbuf->from[buf_num] = ue;
 	  buf_num++;
 	}
