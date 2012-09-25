@@ -72,6 +72,8 @@ int main(int argc, char **argv) {
   msg = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
   assert(msg != NULL);
 
+  uint32_t last_recv_from = 0;
+
   ssmp_barrier_wait(0);
   P("CLEARED barrier %d", 0);
 
@@ -81,15 +83,16 @@ int main(int argc, char **argv) {
 
   if (ID % 2 == 0) {
     while(1) {
-      ssmp_recv_color(cbuf, msg, 24);
+      //ssmp_recv_color(cbuf, msg, 24);
+      last_recv_from = ssmp_recv_color_start(cbuf, msg, last_recv_from + 1);
 
       if (msg->w0 < 0) {
 	P("exiting ..");
 	exit(0);
       }
-      //ssmp_send(msg->sender, msg, 8);
+      ssmp_send(msg->sender, msg, 8);
       //      ssmp_sendm(msg->sender, msg);
-      ssmp_send_inline(msg->sender, msg);
+      //ssmp_send_inline(msg->sender, msg);
     }
   }
   else {
@@ -97,14 +100,15 @@ int main(int argc, char **argv) {
     long long int nm1 = nm;
     while (nm1--) {
       to = (to + 2) % num_procs;
+      //to = 0;
 
       msg->w0 = nm1;
-      //      ssmp_send(to, msg, 24);
-      //      ssmp_recv_from(to, msg, 24);
+      ssmp_send(to, msg, 24);
+      ssmp_recv_from(to, msg, 24);
       //      ssmp_sendm(to, msg);
       //      ssmp_recv_fromm(to, msg);
-      ssmp_send_inline(to, msg);
-      ssmp_recv_from_inline(to, msg);
+      //ssmp_send_inline(to, msg);
+      //ssmp_recv_from_inline(to, msg);
       if (msg->w0 != nm1) {
 	P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
       }
