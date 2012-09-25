@@ -1,4 +1,5 @@
-PLATFORM_NUMA=0
+PLATFORM_NUMA=1
+MEASUREMENTS=1
 
 ifeq ($(P),0) #give P=0 to compile with debug info
 DEBUG_CFLAGS=-ggdb -Wall -g  -fno-inline #-pg
@@ -9,7 +10,8 @@ PERF_CLFAGS= -O3
 endif
 
 ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
-PERF_CLFAGS+= -lnuma
+PERF_CLFAGS += -lnuma
+VER_FLAGS = -DPLATFORM_NUMA
 endif 
 
 
@@ -33,16 +35,23 @@ ssmp_recv.o: ssmp_send.c
 ssmp_broadcast.o: ssmp_broadcast.c
 	gcc $(VER_FLAGS) -D_GNU_SOURCE -c ssmp_broadcast.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
-libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h
+ifeq ($(MEASUREMENTS),1)
+MEASUREMENTS_FILES += measurements.o
+endif
+
+measurements.o: measurements.c
+	gcc $(VER_FLAGS) -D_GNU_SOURCE -c measurements.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
+
+libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h $(MEASUREMENTS_FILES)
 	@echo Archive name = libssmp.a
-	ar -r libssmp.a ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o
+	ar -r libssmp.a ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o $(MEASUREMENTS_FILES)
 	rm -f *.o	
 
 one2one: libssmp.a one2one.o common.h
-	gcc $(VER_FLAGS) -o one2one one2one.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) #-O3
+	gcc $(VER_FLAGS) -o one2one one2one.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 one2one.o:	one2one.c ssmp.c
-		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) #-O3 
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 cas_stresh: libssmp.a cas_stresh.o common.h
 	gcc $(VER_FLAGS) -o cas_stresh cas_stresh.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
@@ -51,10 +60,10 @@ cas_stresh.o:	cas_stresh.c ssmp.c
 		gcc $(VER_FLAGS) -D_GNU_SOURCE -c cas_stresh.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 one2one_manual: libssmp.a one2one_manual.o common.h
-	gcc $(VER_FLAGS) -o one2one_manual one2one_manual.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) -O3
+	gcc $(VER_FLAGS) -o one2one_manual one2one_manual.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
 
 one2one_manual.o:	one2one_manual.c ssmp.c
-		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one_manual.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) -O3
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one_manual.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
 
 ticket_lock: libssmp.a ticket_lock.o common.h
 	gcc $(VER_FLAGS) -o ticket_lock ticket_lock.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
