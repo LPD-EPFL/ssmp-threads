@@ -105,10 +105,7 @@ int main(int argc, char **argv) {
       msg->w0 = nm1;
       ssmp_send(to, msg, 24);
       ssmp_recv_from(to, msg, 24);
-      //      ssmp_sendm(to, msg);
-      //      ssmp_recv_fromm(to, msg);
-      //ssmp_send_inline(to, msg);
-      //ssmp_recv_from_inline(to, msg);
+
       if (msg->w0 != nm1) {
 	P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
       }
@@ -124,15 +121,25 @@ int main(int argc, char **argv) {
   ticks _ticks = _end_ticks - _start_ticks;
   ticks _ticksm =(ticks) ((double)_ticks / nm);
   double lat = (double) (1000*1000*1000*_time) / nm;
-  printf("sent %lld msgs\n\t"
-	 "in %f secs\n\t"
-	 "%.2f msgs/us\n\t"
-	 "%f ns latency\n"
-	 "in ticks:\n\t"
-	 "in %lld ticks\n\t"
-	 "%lld ticks/msg\n", nm, _time, ((double)nm/(1000*1000*_time)), lat,
-	 _ticks, _ticksm);
 
+
+  uint32_t c;
+  for (c = 0; c < ssmp_num_ues(); c++)
+    {
+      if (c == ssmp_id())
+	{
+	  printf("[%02d] sent %lld msgs\n\t"
+		 "in %f secs\n\t"
+		 "%.2f msgs/us\n\t"
+		 "%f ns latency\n"
+		 "in ticks:\n\t"
+		 "in %lld ticks\n\t"
+		 "%lld ticks/msg\n", 
+		 c, nm, _time, ((double)nm/(1000*1000*_time)), lat,
+		 _ticks, _ticksm);
+	}
+      ssmp_barrier_wait(1);
+    }
 
   ssmp_barrier_wait(1);
   if (ssmp_id() == 1) {
