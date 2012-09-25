@@ -21,13 +21,8 @@ inline void ssmp_recv_from(int from, ssmp_msg_t *msg, int length) {
 #else
   while(tmpm->state == BUF_EMPTY);
 #endif
-  msg->w0 = tmpm->w0;				
-  msg->w1 = tmpm->w1;				
-  msg->w2 = tmpm->w2;				
-  msg->w3 = tmpm->w3;				
-  msg->w4 = tmpm->w4;				
-  msg->w5 = tmpm->w5;				
-  //  CPY_LLINTS(msg, tmpm, length);
+  
+  CPY_LLINTS(msg, tmpm, length);
   tmpm->state = BUF_EMPTY;
 
 }
@@ -146,16 +141,8 @@ ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length)
 	    if (cbuf->buf[from]->state == BUF_MESSG)
 #endif
 	      {
-		//CPY_LLINTS(msg, cbuf->buf[from], length);
-		volatile ssmp_msg_t *tmpm = cbuf->buf[from];
-		msg->w0 = tmpm->w0;				
-		msg->w1 = tmpm->w1;				
-		msg->w2 = tmpm->w2;				
-		msg->w3 = tmpm->w3;				
-		msg->w4 = tmpm->w4;				
-		msg->w5 = tmpm->w5;				
-		msg->w6 = tmpm->w6;
-		msg->w7 = tmpm->w7;
+		volatile ssmp_msg_t* tmpm = cbuf->buf[from];
+		CPY_LLINTS(msg, tmpm, length);
 		msg->sender = cbuf->from[from];
 
 		tmpm->state = BUF_EMPTY;
@@ -171,7 +158,7 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_fr
 {
   uint32_t from = start_from;
   uint32_t num_ues = cbuf->num_ues;
-  //  printf("starting recv from %d (num_ues is %d)\n", from, num_ues);
+
   volatile unsigned int **cbuf_state = cbuf->buf_state;
   while(1) {
     for (; from < num_ues; from++)
@@ -183,16 +170,8 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_fr
 	  if (cbuf->buf[from]->state == BUF_MESSG)
 #endif
 	    {
-	      //CPY_LLINTS(msg, cbuf->buf[from], length);
-	      volatile ssmp_msg_t *tmpm = cbuf->buf[from];
-	      msg->w0 = tmpm->w0;				
-	      msg->w1 = tmpm->w1;				
-	      msg->w2 = tmpm->w2;				
-	      msg->w3 = tmpm->w3;				
-	      msg->w4 = tmpm->w4;				
-	      msg->w5 = tmpm->w5;				
-	      msg->w6 = tmpm->w6;
-	      msg->w7 = tmpm->w7;
+	      volatile ssmp_msg_t* tmpm = cbuf->buf[from];
+	      CPY_LLINTS(msg, tmpm, 64);
 	      msg->sender = cbuf->from[from];
 
 	      tmpm->state = BUF_EMPTY;

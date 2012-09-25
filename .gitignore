@@ -2,6 +2,7 @@
 *.a
 *.o
 *~
+/.nfs00000000085a1c9200000058
 /.tmp
 /barrier
 /cas_stresh

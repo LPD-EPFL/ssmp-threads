@@ -38,7 +38,7 @@
 #define PD(args...) 
 #endif
 
-#define USE_MEMCPY_
+#define USE_MEMCPY
 
 #ifdef USE_MEMCPY
 #define CPY_LLINTS(to, from, length)		\

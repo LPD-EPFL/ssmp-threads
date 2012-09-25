@@ -24,15 +24,7 @@ inline void ssmp_send(int to, ssmp_msg_t *msg, int length) {
   while(tmpm->state == BUF_MESSG);
 #endif
 
-  tmpm->w0 = msg->w0;	
-  tmpm->w1 = msg->w1;	
-  tmpm->w2 = msg->w2;
-  tmpm->w3 = msg->w3;
-  tmpm->w4 = msg->w4;
-  tmpm->w5 = msg->w5;
-  tmpm->w6 = msg->w6;
-  tmpm->w7 = msg->w7;
-    //CPY_LLINTS(tmpm, msg, length);
+  CPY_LLINTS(tmpm, msg, length);
   tmpm->state = BUF_MESSG;
 }
 
