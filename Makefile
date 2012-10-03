@@ -6,7 +6,7 @@ DEBUG_CFLAGS=-ggdb -Wall -g  -fno-inline #-pg
 PERF_CLFAGS= 
 else
 DEBUG_CFLAGS=-Wall
-PERF_CLFAGS= -O3
+PERF_CLFAGS= -O0
 endif
 
 ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
@@ -64,6 +64,18 @@ one2one_manual: libssmp.a one2one_manual.o common.h
 
 one2one_manual.o:	one2one_manual.c ssmp.c
 		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one_manual.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+
+moesi: libssmp.a moesi.o common.h
+	gcc $(VER_FLAGS) -o moesi moesi.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+
+moesi.o:	moesi.c ssmp.c
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c moesi.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+
+l1_spil: libssmp.a l1_spil.o common.h
+	gcc $(VER_FLAGS) -o l1_spil l1_spil.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+
+l1_spil.o:	l1_spil.c ssmp.c
+		gcc $(VER_FLAGS) -D_GNU_SOURCE -c l1_spil.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
 
 ticket_lock: libssmp.a ticket_lock.o common.h
 	gcc $(VER_FLAGS) -o ticket_lock ticket_lock.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)

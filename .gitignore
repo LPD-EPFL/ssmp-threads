@@ -9,10 +9,12 @@
 /cas_stresh
 /color_buf
 /color_buf_memcpy
+/l1_spil
 /mem
 /mem_latencies
 /memstresh
 /memstreshmp
+/moesi
 /mpmap.out
 /mpmap.out.cas.numa
 /mpmap.out.cas.numa.15Jul
