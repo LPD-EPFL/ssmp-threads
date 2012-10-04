@@ -33,6 +33,39 @@
 
 #define MFENCE() asm volatile("mfence")
 
+#define B0 ssmp_barrier_wait(0);
+#define B1 ssmp_barrier_wait(2);
+#define B2 ssmp_barrier_wait(3);
+#define B3 ssmp_barrier_wait(4);
+#define B4 ssmp_barrier_wait(5);
+#define B5 ssmp_barrier_wait(6);
+#define B6 ssmp_barrier_wait(7);
+#define B7 ssmp_barrier_wait(8);
+#define B8 ssmp_barrier_wait(9);
+#define B9 ssmp_barrier_wait(10);
+#define B10 ssmp_barrier_wait(11);
+#define B11 ssmp_barrier_wait(12);
+#define B12 ssmp_barrier_wait(13);
+#define B13 ssmp_barrier_wait(14);
+#define B14 ssmp_barrier_wait(15);
+
+#define FB0 barrier_wait(fbarrier + 0);
+#define FB1 barrier_wait(fbarrier + 2);
+#define FB2 barrier_wait(fbarrier + 3);
+#define FB3 barrier_wait(fbarrier + 4);
+#define FB4 barrier_wait(fbarrier + 5);
+#define FB5 barrier_wait(fbarrier + 6);
+#define FB6 barrier_wait(fbarrier + 7);
+#define FB7 barrier_wait(fbarrier + 8);
+#define FB8 barrier_wait(fbarrier + 9);
+#define FB9 barrier_wait(fbarrier + 10);
+#define FB10 barrier_wait(fbarrier + 11);
+#define FB11 barrier_wait(fbarrier + 12);
+#define FB12 barrier_wait(fbarrier + 13);
+#define FB13 barrier_wait(fbarrier + 14);
+#define FB14 barrier_wait(fbarrier + 15);
+
+
 int num_procs = 2;
 
 static void
@@ -73,12 +106,15 @@ int main(int argc, char **argv) {
   }
 
   ID = 0;
-  printf("NUM of processes: %d\n", num_procs);
-  printf("NUM of msgs: %lld\n", nm);
+  printf("NUM of processes  : %d\n", num_procs);
+  printf("NUM of repetitions: %lld\n", nm);
   printf("testing moesi\n");
 
 
   ssmp_init(num_procs);
+
+  volatile ssmp_msg_t* cache_line_anonym = (volatile ssmp_msg_t*) mmap(NULL, 4096, PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+  assert(cache_line_anonym != NULL);
 
   int rank;
   for (rank = 1; rank < num_procs; rank++) {
@@ -106,6 +142,8 @@ int main(int argc, char **argv) {
   getticks_correction = getticks_correction_calc();
 
 
+
+
   volatile ssmp_msg_t* cache_line;
   ssmp_barrier_wait(0);
   char keyF[100];
@@ -113,7 +151,7 @@ int main(int argc, char **argv) {
   shm_unlink(keyF);
   PRINT("opening the cache line (%s)", keyF);
 
-  int size =  sizeof(ssmp_msg_t);
+  int size = 4096;// sizeof(ssmp_msg_t);
 
   int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
   if (ssmpfd < 0) 
@@ -200,12 +238,37 @@ int main(int argc, char **argv) {
     }
 
 
+  fbarrier[11] = 111;
+
   ssmp_barrier_wait(0);
 
   /* /\********************************************************************************* */
   /*  *  main functionality */
   /*  *********************************************************************************\/ */
 
+
+#define PFI { ticks _s = getticks();
+#define PFO(store)					\
+  ticks _d = getticks() - _s - getticks_correction;	\
+  (store) = _d; }
+#define PFP(det, num_vals)					\
+  {								\
+    uint32_t _i; ticks _sum = 0;				\
+    for (_i = 0; _i < (num_vals); _i++)				\
+      {								\
+	_sum += (det)[_i];					\
+	printf("[%3d : %3lld] ", _i, (int64_t) det[_i]);	\
+      }								\
+    printf("\n");						\
+    printf(" -- sum: %10llu | avg: %.1f\n",			\
+	   _sum, _sum / (double) num_vals);			\
+  }
+
+  ticks* _ticks_det = (ticks*) malloc(2 * nm * sizeof(ticks));
+  assert(_ticks_det != NULL);
+  ticks* _ticks_det2 = _ticks_det + nm;
+
+  uint64_t sum = 0;
 
   if (ID % 2 == 0) 
     {
@@ -214,9 +277,23 @@ int main(int argc, char **argv) {
       uint64_t reps;
       for (reps = 0; reps < nm; reps++)
 	{
+	  /* if (reps % 10 == 0) */
+	  /*   { */
+	  /* _mm_clflush(cache_line); */
+	  /* _mm_mfence(); */
+	  /* wait_cycles(5000); */
+	  /*   } */
 
+	  B0;			/* BARRIER 0 */
+	  PFI;
+	  cache_line->w0 = reps;
+	  _mm_sfence();
+	  /* sum += cache_line->w0; */
+	  /* _mm_lfence(); */
+	  PFO(_ticks_det[reps]);
+	  B1;			/* BARRIER 1 */
+	  B2;			/* BARRIER 2 */
 	}
-
     }
   else 			/* SENDER */
     {
@@ -225,10 +302,22 @@ int main(int argc, char **argv) {
       uint64_t reps;
       for (reps = 0; reps < nm; reps++)
 	{
+	  B0;			/* BARRIER 0 */
+	  B1;			/* BARRIER 1 */
+	  PFI;
+	  sum += cache_line->w0;
+	  _mm_lfence();
+	  PFO(_ticks_det[reps]);
 
+	  PFI;
+	  cache_line->w0 = reps;
+	  _mm_sfence();
+	  PFO(_ticks_det2[reps]);
+	  B2;			/* BARRIER 2 */
 	}
-
     }
+
+  PRINT(" -- sum = %llu", sum);
     
 
   uint32_t id;
@@ -236,11 +325,16 @@ int main(int argc, char **argv) {
     {
       if (ID == id)
 	{
-	  PF_PRINT;
+	  //	  PF_PRINT;
+	  PFP(_ticks_det, nm);
+	  if (ID)
+	    {
+	      PFP(_ticks_det2, nm);
+	    }
 	}
       ssmp_barrier_wait(0);
     }
-  ssmp_barrier_wait(0);
+  ssmp_barrier_wait(10);
 
 
   shm_unlink(keyF);

@@ -29,6 +29,7 @@ extern "C" {
 
 #define DO_TIMINGS_TICKS
 
+
 #ifndef DO_TIMINGS
 #undef DO_TIMINGS_TICKS
 #undef DO_TIMINGS_STD
@@ -50,6 +51,9 @@ extern "C" {
 #define PF_EXCLUDE(pos)         EXCLUDE_ENTRY(pos)
 #define PF_CORRECTION           MEASUREREMENT_CORRECTION
 #endif
+
+#define PFIN                    PF_START
+#define PFOUT                   PF_STOP
 
 #ifdef DO_TIMINGS
 #ifndef DO_TIMINGS_STD
