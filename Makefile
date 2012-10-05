@@ -6,7 +6,7 @@ DEBUG_CFLAGS=-ggdb -Wall -g  -fno-inline #-pg
 PERF_CLFAGS= 
 else
 DEBUG_CFLAGS=-Wall
-PERF_CLFAGS= -O0
+PERF_CLFAGS= -O0 -g
 endif
 
 ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
