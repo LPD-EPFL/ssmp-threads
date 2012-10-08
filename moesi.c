@@ -45,6 +45,7 @@ typedef enum
     STORE_ON_INVALID,
     LOAD_FROM_INVALID,
     LOAD_FROM_SHARED,
+    LOAD_FROM_OWNED,
   } moesi_type_t;
 
 const char* moesi_type_des[] =
@@ -56,7 +57,8 @@ const char* moesi_type_des[] =
     "LOAD_FROM_MODIFIED",
     "STORE_ON_INVALID",
     "LOAD_FROM_INVALID",
-    "LOAD_FROM_SHARED"
+    "LOAD_FROM_SHARED",
+    "LOAD_FROM_OWNED"
   };
 
 #define B0 ssmp_barrier_wait(0);
@@ -139,6 +141,8 @@ typedef struct abs_deviation
 {
   uint64_t num_vals;
   double avg;
+  double avg_10p;
+  double avg_25p;
   double abs_dev;
   double min_dev;
   uint64_t min_dev_idx;
@@ -155,7 +159,8 @@ static void print_abs_deviation(abs_deviation_t* abs_dev)
 {
   PRINT("\n -- abs deviation stats:");
   PRINT("    num : %llu", abs_dev->num_vals);
-  PRINT("    avg : %.1f", abs_dev->avg);
+  PRINT("    avg : %-10.1f (10%%: %-4.1f, 25%%: %-4.1f)", 
+	abs_dev->avg, abs_dev->avg_10p, abs_dev->avg_25p);
   PRINT("    dev : %.1f", abs_dev->abs_dev);
   PRINT("    min : %-10.1f (elem: %llu)", abs_dev->min_dev, abs_dev->min_dev_idx);
   PRINT("    max : %-10.1f (elem: %llu)", abs_dev->max_dev, abs_dev->max_dev_idx);
@@ -196,8 +201,8 @@ get_abs_deviation(ticks* vals, size_t num_vals, abs_deviation_t* abs_dev)
   double max_dev = 0;
   double min_dev = DBL_MAX;
   uint64_t max_dev_idx, min_dev_idx;
-  uint32_t num_dev_10p = 0; double dev_10p = 0.1 * avg;
-  uint32_t num_dev_25p = 0; double dev_25p = 0.25 * avg;
+  uint32_t num_dev_10p = 0; ticks sum_vals_10p = 0; double dev_10p = 0.1 * avg;
+  uint32_t num_dev_25p = 0; ticks sum_vals_25p = 0; double dev_25p = 0.25 * avg;
   uint32_t num_dev_50p = 0; double dev_50p = 0.5 * avg;
   uint32_t num_dev_75p = 0; double dev_75p = 0.75 * avg;
   uint32_t num_dev_rst = 0;
@@ -221,10 +226,12 @@ get_abs_deviation(ticks* vals, size_t num_vals, abs_deviation_t* abs_dev)
       if (ad <= dev_10p)
 	{
 	  num_dev_10p++;
+	  sum_vals_10p += vals[i];
 	}
       else if (ad <= dev_25p)
 	{
 	  num_dev_25p++;
+	  sum_vals_25p += vals[i];
 	}
       else if (ad <= dev_50p)
 	{
@@ -251,6 +258,9 @@ get_abs_deviation(ticks* vals, size_t num_vals, abs_deviation_t* abs_dev)
   abs_dev->num_dev_75p = num_dev_75p;
   abs_dev->num_dev_rst = num_dev_rst;
 
+  abs_dev->avg_10p = sum_vals_10p / (double) num_dev_10p;
+  abs_dev->avg_25p = sum_vals_25p / (double) num_dev_25p;
+
   double adev = sum_adev / num_vals;
   abs_dev->abs_dev = adev;
 }
@@ -263,6 +273,28 @@ moesi_type_t moesi_type = STORE_ON_MODIFIED;
 uint32_t inv_every_rep = 0;
 
 int main(int argc, char **argv) {
+  uint32_t ar;
+  for (ar = 1; ar < argc; ar++)
+    {
+      if (strcmp(argv[ar], "h") == 0 ||
+	  strcmp(argv[ar], "-h") == 0 ||
+	  strcmp(argv[ar], "help") == 0 ||
+	  strcmp(argv[ar], "-help") == 0 ||
+	  strcmp(argv[ar], "--help") == 0
+	  )
+	{
+	  PRINT("Usage:: ./%s NUM_CORES REPETITIONS CORE1 CORE2 [CORE3] MOESI_EVENT [INVALIDATE]", argv[0]);
+	  PRINT("   where moesi event is one of the following:");
+	  for (ar = 0; ar < 9; ar++)
+	    {
+	      PRINT("      %d - %s", ar, moesi_type_des[ar]);
+	    }
+
+	  return 0;
+	}
+    }
+
+
   if (argc > 1) {
     num_procs = atoi(argv[1]);
   }
@@ -443,9 +475,9 @@ int main(int argc, char **argv) {
 #define PFP(det, num_vals)					\
   {								\
     uint32_t _i; ticks _sum = 0;				\
-    for (_i = 0; _i < (num_vals); _i++)				\
+    uint32_t p = (num_vals < 200) ? num_vals : 200;		\
+    for (_i = 0; _i < p; _i++)				\
       {								\
-	_sum += (det)[_i];					\
 	printf("[%3d : %3lld] ", _i, (int64_t) det[_i]);	\
       }								\
     abs_deviation_t ad;						\
@@ -575,6 +607,24 @@ int main(int argc, char **argv) {
 		PFI;
 		sum += cache_line[cln].w0;
 		_mm_lfence();
+		PFO(_ticks_det[reps]);
+	      
+		B1;			/* BARRIER 1 */
+		B2;			/* BARRIER 2 */
+		break;
+	      }
+	    case LOAD_FROM_OWNED:
+	      {
+		int64_t cln = rands[reps];
+		if (inv_every_rep)
+		  {
+		    cln = 0;
+		  }
+
+		asm("");
+		PFI;
+		cache_line[cln].w0 = reps;
+		_mm_sfence();
 		PFO(_ticks_det[reps]);
 	      
 		B1;			/* BARRIER 1 */
@@ -715,6 +765,24 @@ int main(int argc, char **argv) {
 		B2;			/* BARRIER 2 */
 		break;
 	      }
+	    case LOAD_FROM_OWNED:
+	      {
+		B1;			/* BARRIER 1 */
+		int64_t cln = rands[reps];
+		if (inv_every_rep)
+		  {
+		    cln = 0;
+		  }
+
+		asm("");
+		PFI;
+		sum += cache_line[cln].w0;
+		_mm_lfence();
+		PFO(_ticks_det[reps]);
+	      
+		B2;			/* BARRIER 2 */
+		break;
+	      }
 	    default:
 	      break;
 	    }
@@ -773,6 +841,24 @@ int main(int argc, char **argv) {
 		sum += cache_line[cln].w0;
 		_mm_lfence();
 		PFO(_ticks_det[reps]);
+		break;
+	      }
+	    case LOAD_FROM_OWNED:
+	      {
+		B1;			/* BARRIER 1 */
+		int64_t cln = rands[reps];
+		if (inv_every_rep)
+		  {
+		    cln = 0;
+		  }
+
+		asm("");
+		PFI;
+		sum += cache_line[cln].w0;
+		_mm_lfence();
+		PFO(_ticks_det[reps]);
+	      
+		B2;			/* BARRIER 2 */
 		break;
 	      }
 	    case STORE_ON_MODIFIED:
@@ -895,6 +981,20 @@ int main(int argc, char **argv) {
 	    if (num_procs == 3)
 	      {
 		PRINT(" ** Results from Core 2 : read from shared");
+	      }
+	    break;
+	  }
+	case LOAD_FROM_OWNED:
+	  {
+	    PRINT(" ** Results from Core 0 : ignore");
+	    PRINT(" ** Results from Core 1 : read from modified");
+	    if (num_procs == 3)
+	      {
+		PRINT(" ** Results from Core 2 : read from owned");
+	      }
+	    else
+	      {
+		PRINT(" ** Need 3 processes to achieve LOAD_FROM_SHARED");
 	      }
 	    break;
 	  }
