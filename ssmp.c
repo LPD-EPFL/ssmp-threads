@@ -467,6 +467,15 @@ wait_cycles(uint32_t cycles)
     }
 }
 
+inline void
+_mm_pause_rep(uint32_t num_reps)
+{
+  while (num_reps--)
+    {
+      _mm_pause();
+    }
+}
+
 void set_cpu(int cpu) {
   cpu_set_t mask;
   CPU_ZERO(&mask);
@@ -478,8 +487,9 @@ void set_cpu(int cpu) {
   }
 
 #ifdef PLATFORM_NUMA
-  SP("\t\t\tcore %02d -> tnuma_set_preferred(%d)", cpu, cpu/6);
-  numa_set_preferred(cpu/6);  
+  uint32_t numa_node = cpu/6;
+  SP("\t\t\tcore %02d -> tnuma_set_preferred(%d)", cpu, numa_node);
+  numa_set_preferred(numa_node);  
 #endif /* PLATFORM_NUMA */
   
 }
