@@ -20,6 +20,7 @@
 #include "common.h"
 #include "ssmp.h"
 #include "measurements.h"
+#include "pfd.h"
 
 #define NO_MSG 0
 #define MSG 1
@@ -55,10 +56,35 @@ __attribute__ ((always_inline)) void tunlock(ticket_lock_t * lock) {
   lock->current++;
 }
 
-
 int num_procs = 2;
+
+static void
+barrier_wait(volatile uint32_t* barrier)
+{
+  uint32_t num_passed = __sync_add_and_fetch(barrier, 1);
+  if (num_passed < num_procs)
+    {
+      while (*barrier < num_procs)
+	{
+	  _mm_lfence();
+	}
+
+      *barrier = 0;
+      _mm_sfence();
+    }
+  else
+    {
+      while (*barrier > 0)
+	{
+	  _mm_lfence();
+	}
+    }
+
+  MFENCE();
+}
+
 long long int nm = 100000000;
-int ID, wcycles = 30;
+int ID, wcycles = 0;
 ticks getticks_correction;
 
 int main(int argc, char **argv) {
@@ -68,6 +94,13 @@ int main(int argc, char **argv) {
   if (argc > 2) {
     nm = atol(argv[2]);
   }
+
+  if (argc > 5)
+    {
+      wcycles = atoi(argv[5]);
+      //      PRINT("wcycles =  %d ", wcycles);
+      PRINT("removing the line from caches <= L%d", wcycles);
+    }
 
   ID = 0;
   printf("NUM of processes: %d\n", num_procs);
@@ -111,7 +144,7 @@ int main(int argc, char **argv) {
   sprintf(keyF,"/ssmp_to%02d_from%02d", ID, !ID);
   PRINT("opening my local buff (%s)", keyF);
 
-  int size = 5 * sizeof(ssmp_msg_t);
+  int size = (512 + (2 * 512 + 18 * 512) + ((2 * 512 + 18 * 512) + 1706 * 48)) * sizeof(ssmp_msg_t);
 
   int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
   if (ssmpfd<0) {
@@ -147,8 +180,6 @@ int main(int argc, char **argv) {
 
   sprintf(keyF,"/ssmp_to%02d_from%02d", !ID, ID);
   PRINT("opening my remote buff (%s)", keyF);
-
-  size = 5 * sizeof(ssmp_msg_t);
 
   
   ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
@@ -223,177 +254,133 @@ int main(int argc, char **argv) {
   PF_MSG(2, "sending");
   PF_MSG(3, "wait while(!recv)");
 
+  sprintf(keyF,"/finc");
+  PRINT("opening my lock buff (%s)", keyF);
+
+  size = sizeof(ssmp_msg_t);
+
+  ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
+  if (ssmpfd<0) {
+    if (errno != EEXIST) {
+      perror("In shm_open");
+      exit(1);
+    }
+    else {
+      ;
+    }
+
+    ssmpfd = shm_open(keyF, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG);
+    if (ssmpfd<0) {
+      perror("In shm_open");
+      exit(1);
+    }
+  }
+  else {
+    //P("%s newly openned", keyF);
+    if (ftruncate(ssmpfd, size) < 0) {
+      perror("ftruncate failed\n");
+      exit(1);
+    }
+  }
+
+  volatile uint32_t* finc = (volatile uint32_t*) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
+  if (finc == NULL || (unsigned int) finc == 0xFFFFFFFF) {
+    perror("comb = NULL\n");
+    exit(134);
+  }
+
+  uint32_t f;
+  for (f = 0; f < 16; f++) finc[f] = 0;
+
+  pfd_store_init(nm);
+
   ssmp_barrier_wait(0);
 
   /* /\********************************************************************************* */
   /*  *  main functionality */
   /*  *********************************************************************************\/ */
 
-  ticks wtimes = 0, wc;
+  ticks wtimes = 0, wc = 0, access_lat = 0;
+  uint32_t nm1 = nm;
 
   if (ID % 2 == 0) 
     {
       P("service core!");
 
-      unsigned int old = nm - 1;
+      uint32_t nm1 = nm;
 
-      wc = atoi(argv[5]);
-      PRINT("wc = %d", (int) wc);
-
-      while(1) 
+      while (nm1--)
 	{
-	  LOCK_GET(lock, ID);
-
-	  //	  PREFETCH((local + cur));
-	  /* PF_START(1); */
-	  
-	  /************************************************************* receive */
-	  uint32_t* state = &local[cur].state;
-	  LOCK_GIVE(lock, !ID);
-	  LOCK_GET(lock, ID);
-	  LOCK_GIVE(lock, !ID);
+	  uint32_t wted = 0;
+	  //	  PF_START(0);
+	  PFDI();
+	  PREFETCHW(local);
 	  _mm_sfence();
-	  wait_cycles(wc);
-
-
-	  //	  PREFETCHW((&local[!cur].state));
-
-	  PF_START(3);
-	  //	  PREFETCHW(state);
-	  while (*state != MSG)
+	  while (local->state != MSG)
 	    {
-	      wait_cycles(150);
-	      //	      PREFETCHW(state);
-	      wtimes++;
-	      _mm_lfence();
+	      if (wted++)
+		{
+		  PREFETCHW(local);
+		  _mm_sfence();
+		  wait_cycles(wted * 6);
+		}
 	    }
-	  //	  while (local[cur].state != MSG);
+	  memcpy(msgp, local, 64);
+	  local->state = NO_MSG;
+	  //	  PF_STOP(0);
+	  PFDO(0, nm-nm1-1);
 
-	  memcpy(msgp, local + cur, 64);
-	  local[cur].state = NO_MSG;
-	  //	  local[!cur].state = NO_MSG;
-	  _mm_mfence();
-	  PF_STOP(3);
-	  /* PF_STOP(1); */
-
-	  /************************************************************* end recv */
-	  /************************************************************* send */
-	  PF_START(2);
-	  PREFETCHW((remote + cur));
-
-	  msgp->state = MSG;
-	  memcpy(remote + cur, msgp, 64);
-	  _mm_mfence();
-	  PF_STOP(2);
-
-	  //	  cur = !cur;
-	  /************************************************************* end send */
-
-	  if (msgp->w0 == 0) {
-	    PRINT("done");
-	    break;
-	  }
-
-	  if (msgp->w0 != old) {
-	    PRINT("w0 -- expected %d, got %d", old, msgp->w0);
-	  }
-
-	  old--;
-
+	  wtimes += wted;
 	}
-      PRINT("wtimes = %llu | avg = %f", wtimes, wtimes / (double) nm);
     }
   else 			/* SENDER */
     {
       P("app core!");
-      long long int nm1 = nm;
-      uint32_t wb = 1;
 
 	
       while (nm1--)
 	{
+	  uint32_t wted = 0;
+	  wait_cycles(1024);
 
-	  msgp->w0 = nm1;
-	  msgp->w1 = nm1;
-	  msgp->w2 = nm1;
-	  msgp->w3 = nm1;
-	  msgp->w4 = nm1;
-	  msgp->w5 = nm1;
-	  msgp->w6 = nm1;
-	  msgp->w7 = nm1;
-	  
-
-	  /* while (remote[cur].state != NO_MSG) */
-	  /*   { */
-	  /*     wtimes++; */
-	  /*   } */
-	  LOCK_GET(lock, ID);
-	  LOCK_GIVE(lock, !ID);
-	  LOCK_GET(lock, ID);
-
-
-	  /************************************************************* send */
-	  PF_START(2);
-	  msgp->state = MSG;
-	  PREFETCHW((remote + cur));
-	  //	  memcpy(remote + cur, msgp, 64);
-	  remote[cur].w0 = msgp->w0;
-	  remote[cur].state = MSG;
+	  //	  PF_START(0);
+	  PFDI();
+	  PREFETCHW(remote);
 	  _mm_sfence();
-	  PF_STOP(2);
-
-	  LOCK_GIVE(lock, !ID);
-
-	  //PRINT("%llu -- %d", nm1, cur);
-	  /************************************************************* recv */
-	  uint32_t w = 0;
-
-	  PF_START(1);
-	  //	  PREFETCHW(&local[!cur]);
-	  PREFETCHW((local + cur));
-	  /* PF_START(3); */
-	  while (local[cur].state != MSG)
+	  while (remote->state != NO_MSG)
 	    {
-	      wtimes++;
-	      PREFETCHW((local+cur));
-	      _mm_pause();	      _mm_pause();
+	      if (wted++)
+		{
+		  PREFETCHW(local);
+		  _mm_pause();
+		  _mm_sfence();
+		}
 	    }
-	  wb = w;
-	  /* PF_STOP(3); */
-
-	  memcpy(msgp, local + cur, 64);
-
-	  //	  local[!cur].state = NO_MSG;
-	  local[cur].state = NO_MSG;
-	  PF_STOP(1);
-	  //	  cur = !cur;
+	  msgp->state = MSG;
+	  memcpy(remote, msgp, 64);
+	  //	  PF_STOP(0);
+	  PFDO(0, nm-nm1-1);
+	  wtimes += wted;
 	}
-
-      PRINT("wtimes = %llu | avg = %f", wtimes, wtimes / (double) nm);
     }
 
+  PRINT("wtimes = %10llu | avg wtimes = %.1f", wtimes, wtimes / (double) nm);
 
-  uint64_t nm1;
+
   for (nm1 = 0; nm1 < num_procs; nm1++)
     {
       if (ID == nm1)
-  	{
-	  PF_PRINT;
-	  //	  printf("[%02d] %lld ticks/msg\n", ID, (long long unsigned int) _ticksm);
-
-	  /* printf("sent %lld msgs\n\t" */
-	  /* 	 "in %f secs\n\t" */
-	  /* 	 "%.2f msgs/us\n\t" */
-	  /* 	 "%f ns latency\n" */
-	  /* 	 "in ticks:\n\t" */
-	  /* 	 "in %lld ticks\n\t" */
-	  /* 	 "%lld ticks/msg\n", nm, _time, ((double)nm/(1000*1000*_time)), lat, */
-	  /* 	 (long long unsigned int) _ticks, (long long unsigned int) _ticksm); */
-    	}
+	{
+	  //	  PF_PRINT;
+	  PFDP(0, nm);
+	}
       ssmp_barrier_wait(0);
     }
   ssmp_barrier_wait(0);
 
+
+  shm_unlink(keyF);
+  sprintf(keyF,"/ssmp_to%02d_from%02d", ID, !ID);
   shm_unlink(keyF);
   ssmp_term();
   return 0;
