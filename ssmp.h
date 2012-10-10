@@ -28,7 +28,7 @@
 #define BUF_MESSG 1
 #define BUF_LOCKD 2
 
-#define USE_ATOMIC
+#define USE_ATOMIC_
 
 
 #define SP(args...) printf("[%d] ", ssmp_id_); printf(args); printf("\n"); fflush(stdout)
@@ -172,10 +172,12 @@ typedef struct {
 volatile extern ssmp_msg_t **ssmp_recv_buf;
 volatile extern ssmp_msg_t **ssmp_send_buf;
 
-#define PREFETCHW(x) asm volatile("prefetchw %0" :: "m" (*(unsigned long *)x))
-#define PREFETCH(x) asm volatile("prefetch %0" :: "m" (*(unsigned long *)x))
-#define PREFETCHNTA(x) asm volatile("prefetchnta %0" :: "m" (*(unsigned long *)x))
-
+#define PREFETCHW(x) asm volatile("prefetchw %0" :: "m" (*(unsigned long *)x)) /* write */
+#define PREFETCH(x) asm volatile("prefetch %0" :: "m" (*(unsigned long *)x)) /* read */
+#define PREFETCHNTA(x) asm volatile("prefetchnta %0" :: "m" (*(unsigned long *)x)) /* non-temporal */
+#define PREFETCHT0(x) asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x)) /* all levels */
+#define PREFETCHT1(x) asm volatile("prefetcht1 %0" :: "m" (*(unsigned long *)x)) /* all but L1 */
+#define PREFETCHT2(x) asm volatile("prefetcht2 %0" :: "m" (*(unsigned long *)x)) /* all but L1 & L2 */
 /* ------------------------------------------------------------------------------- */
 /* init / term the MP system */
 /* ------------------------------------------------------------------------------- */
@@ -193,7 +195,10 @@ extern void ssmp_term(void);
 
 /* blocking send length words to to */
 /* blocking in the sense that the data are copied to the receiver's buffer */
-extern inline void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, uint32_t length);
+extern inline void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, size_t length);
+extern inline void ssmp_send_socket(uint32_t to, volatile ssmp_msg_t *msg);
+extern inline void ssmp_put(uint32_t to, ssmp_msg_t *msg);
+
 extern inline void ssmp_send_sig(int to);
 extern inline void ssmp_send_big(int to, void *data, int length);
 
@@ -242,6 +247,7 @@ extern inline void ssmp_broadcast_par(int w0, int w1, int w2, int w3); //XXX: fi
 
 /* blocking receive from process from length bytes */
 extern inline void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg, uint32_t length);
+extern inline void ssmp_recv_from_socket(uint32_t from, volatile ssmp_msg_t *msg);
 extern inline volatile ssmp_msg_t * ssmp_recv_fromp(int from);
 extern inline void ssmp_recv_rls(int from);
 extern inline void ssmp_recv_from_sig(int from);
@@ -297,6 +303,8 @@ extern inline void ssmp_barrier_wait(int barrier_num);
 /* ------------------------------------------------------------------------------- */
 extern inline double wtime(void);
 extern inline void wait_cycles(unsigned int cycles);
+extern inline void _mm_pause_rep(uint32_t num_reps);
+
 extern void set_cpu(int cpu);
 
 typedef uint64_t ticks;

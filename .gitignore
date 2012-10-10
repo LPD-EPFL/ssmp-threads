@@ -10,11 +10,13 @@
 /color_buf
 /color_buf_memcpy
 /l1_spil
+/main.S
 /mem
 /mem_latencies
 /memstresh
 /memstreshmp
 /moesi
+/moesi_th.c
 /mpmap.out
 /mpmap.out.cas.numa
 /mpmap.out.cas.numa.15Jul
@@ -28,6 +30,7 @@
 /one2one_int
 /one2one_lli
 /one2one_manual
+/one2one_manual.S
 /one2one_manual_manual
 /one2one_manual_old_msg_t
 /one2one_mem
@@ -44,6 +47,7 @@
 /pin.log
 /r000hs
 /recv
+/ro.sh
 /rrrr
 /run_nodes
 /run_nodes_fixed
