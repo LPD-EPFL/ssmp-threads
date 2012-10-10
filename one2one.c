@@ -28,9 +28,31 @@ long long int nm = 100000000;
 ticks getticks_correction;
 int ID, on;
 
+
+static inline void
+barrier_wait(uint32_t* barrier)
+{
+  uint32_t num_passed = __sync_add_and_fetch(barrier, 1);
+  if (num_passed < num_procs)
+    {
+      while (*barrier < num_procs)
+	{
+	  _mm_lfence();
+	}
+
+      *barrier = 0;
+      _mm_sfence();
+    }
+  else
+    {
+      while (*barrier > 0)
+	{
+	  _mm_lfence();
+	}
+    }
+}
+
 #define USE_INLINE_
-
-
 
 int main(int argc, char **argv) {
   if (argc > 1) {
@@ -52,6 +74,43 @@ int main(int argc, char **argv) {
 #else      
   P("using NORMAL");
 #endif
+
+  char keyF[100];
+  sprintf(keyF,"/finc");
+  PRINT("opening my local buff (%s)", keyF);
+
+  int size = sizeof(ssmp_msg_t);
+
+  int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
+  if (ssmpfd<0) {
+    if (errno != EEXIST) {
+      perror("In shm_open");
+      exit(1);
+    }
+    else {
+      ;
+    }
+
+    ssmpfd = shm_open(keyF, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG);
+    if (ssmpfd<0) {
+      perror("In shm_open");
+      exit(1);
+    }
+  }
+  else {
+    //P("%s newly openned", keyF);
+    if (ftruncate(ssmpfd, size) < 0) {
+      perror("ftruncate failed\n");
+      exit(1);
+    }
+  }
+
+  uint32_t* finc = (volatile uint32_t*) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
+  if (finc == NULL || (unsigned int) finc == 0xFFFFFFFF) {
+    perror("comb = NULL\n");
+    exit(134);
+  }
+
 
   getticks_correction = getticks_correction_calc();
 
@@ -103,6 +162,8 @@ int main(int argc, char **argv) {
   PF_MSG(1, "receiving");
   PF_MSG(2, "sending");
 
+  uint32_t f;
+  for (f = 0; f < 16; f++) finc[f] = 0;
   ssmp_barrier_wait(0);
 
   /********************************************************************************* 
@@ -114,64 +175,76 @@ int main(int argc, char **argv) {
     unsigned int from = ID+1;
     unsigned int old = nm-1;
     
+    //    ssmp_barrier_wait(0);
+
+
     while(1) 
       {
-	//      wait_cycles(2048); 
+	/* barrier_wait(finc); */
 
 	PF_START(1);
-#if defined(USE_INLINE)
-	ssmp_recv_from_inline(from, msgp);
-#elif defined(USE_MACRO)
-	ssmp_recv_fromm(from, msgp);
-#else      
-	ssmp_recv_from(from, msgp, 24);
+	//	ssmp_recv_from(from, msgp, 64);
+	ssmp_recv_from_socket(from, msgp);
 	PF_STOP(1);
+
+	/* barrier_wait(finc+1); */
+
 	/* PF_START(2); */
-	/* ssmp_send(from, msgp, 24); */
-#endif
+	/* ssmp_send(from, msgp, 64); */
 	/* PF_STOP(2); */
 
-	if (msgp->w0 < 0) {
+	if (msgp->w0 == 0) {
+	  PRINT("done..");
 	  break;
 	}
-	if (msgp->w0 != old) {
-	  PRINT("w0 -- expected %d, got %d", old, msgp->w0);
-	}
-	if (msgp->w5 != old) {
-	  PRINT("w5 -- expected %d, got %d", old, msgp->w5);
-	}
-	old--;
+	/* if (msgp->w0 != old) { */
+	/*   PRINT("w0 -- expected %d, got %d", old, msgp->w0); */
+	/* } */
+	/* if (msgp->w5 != old) { */
+	/*   PRINT("w5 -- expected %d, got %d", old, msgp->w5); */
+	/* } */
+	/* old--; */
+	//	ssmp_barrier_wait(0);
 	      
       }
   }
   else 
     {
       P("app core!");
+      uint32_t wc = 0;
+      if (argc > 5)
+	{
+	  wc = atoi(argv[5]);
+	}
+      PRINT("wc = %u", wc);
       unsigned int to = ID-1;
       long long int nm1 = nm;
 
       while (nm1--) {
-	msgp->w0 = nm1;
-	msgp->w1 = nm1;
-	msgp->w2 = nm1;
-	msgp->w3 = nm1;
-	msgp->w4 = nm1;
-	msgp->w5 = nm1;
+	//	ssmp_barrier_wait(0);
+	/* barrier_wait(finc); */
 
+	msgp->w0 = nm1;
+	/* msgp->w1 = nm1; */
+	/* msgp->w2 = nm1; */
+	/* msgp->w3 = nm1; */
+	/* msgp->w4 = nm1; */
+	/* msgp->w5 = nm1; */
+
+
+	wait_cycles(wc);
 	//    _mm_clflush((void*) ssmp_recv_buf[to]);
-	wait_cycles(2048); 
-	PF_START(2);
-#if defined(USE_INLINE)
-	ssmp_send_inline(to, msgp);
-#elif defined(USE_MACRO)
-	ssmp_sendm(to, msgp);
-#else      
-	ssmp_send(to, msgp, 24);
-	PF_STOP(2);
-	/* PF_START(1); */
-	/* ssmp_recv_from(to, msgp, 24); */
-#endif
-	/* PF_STOP(1); */
+	/* PF_START(2);
+	/* //	ssmp_send(to, msgp, 64); */
+	/* ssmp_put(to, msgp); */
+	/* PF_STOP(2); */
+
+	/* barrier_wait(finc+1); */
+
+	PF_START(1);
+	//	ssmp_recv_from(to, msgp, 64);
+	ssmp_send_socket(to, msgp);
+	PF_STOP(1);
 
       }
     }
@@ -190,14 +263,29 @@ int main(int argc, char **argv) {
   /* 	 "in %lld ticks\n\t" */
   /* 	 "%lld ticks/msg\n", ID, nm, _time, ((double)nm/(1000*1000*_time)), lat, */
   /* 	 (long long unsigned int) _ticks, (long long unsigned int) _ticksm); */
-  PF_PRINT;
 
 
-  ssmp_barrier_wait(1);
-  if (ssmp_id() % 2) {
-    int ex[16]; ex[0] = -1;
-    ssmp_send(ssmp_id() - 1, (ssmp_msg_t *) &ex, sizeof(long long int));
-  }
+  extern uint64_t waited, waited_send;
+
+  uint32_t c;
+  for (c = 0; c < ssmp_num_ues(); c++)
+    {
+      if (c == ssmp_id())
+	{
+	  PRINT(" - - waited: recv: %llu / %0.2f | send: %llu / %0.2f", 
+		waited, waited / (double) nm,
+		waited_send, waited_send / (double) nm);
+	  PF_PRINT;
+	}
+      ssmp_barrier_wait(0);
+    }
+
+
+  /* ssmp_barrier_wait(1); */
+  /* if (ssmp_id() % 2) { */
+  /*   int ex[16]; ex[0] = -1; */
+  /*   ssmp_send(ssmp_id() - 1, (ssmp_msg_t *) &ex, 64); */
+  /* } */
 
   ssmp_term();
   return 0;
