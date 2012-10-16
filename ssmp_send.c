@@ -14,7 +14,9 @@ static volatile ssmp_msg_t *tmpm;
 /* ------------------------------------------------------------------------------- */
 
 
-inline void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, size_t length) {
+inline 
+void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, size_t length) 
+{
   volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
   
 #ifdef USE_ATOMIC
@@ -33,25 +35,9 @@ inline void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, size_t length) {
   memcpy(tmpm, msg, SSMP_CACHE_LINE_SIZE);
 }
 
-inline void ssmp_put(uint32_t to, volatile ssmp_msg_t *msg) {
-  volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
-
-  PREFETCHW(tmpm);
-  msg->state = BUF_MESSG;
-  memcpy(tmpm, msg, SSMP_CACHE_LINE_SIZE);
-}
-
-
-inline void ssmp_send_sig(int to) {
-  tmpm = ssmp_send_buf[to];
-  while(tmpm->state);      
-  tmpm->state = 1;
-
-  PD("sent to %d", to);
-}
-
-
-inline void ssmp_send_big(int to, void *data, int length) {
+inline 
+void ssmp_send_big(int to, void *data, int length) 
+{
   int last_chunk = length % SSMP_CHUNK_SIZE;
   int num_chunks = length / SSMP_CHUNK_SIZE;
 
@@ -76,208 +62,4 @@ inline void ssmp_send_big(int to, void *data, int length) {
   ssmp_chunk_buf[ssmp_id_]->state = 1;
 
   PD("sent to %d", to);
-}
-
-inline void ssmp_sendb(int to, ssmp_msg_t *msg, int length) {
-  
-  while(ssmp_send_buf[to]->state);      
-
-  CPY_LLINTS(ssmp_send_buf[to], msg, length);
-
-  ssmp_send_buf[to]->state = 1;
-  while(ssmp_send_buf[to]->state);
-  PD("sent to %d", to);
-}
-
-
-inline int ssmp_send_try(int to, ssmp_msg_t *msg, int length) {
-  
-  if (!ssmp_send_buf[to]->state) {
-
-    CPY_LLINTS(ssmp_send_buf[to], msg, length);
-
-    ssmp_send_buf[to]->state = 1;
-
-    return 1;
-  }
-  return 0;
-}
-
-/*
-  specialized function for sending 1 to 6 words
- */
-
-inline void ssmp_send1(int to, int w0) {
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  while(m->state);      
-
-  m->w0 = w0;
-
-  m->state = 1;
-
-  PD("sent to %d", to);
-}
-
-inline void ssmp_send2(int to, int w0, int w1) {
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  while(m->state);      
-
-  m->w0 = w0;
-  m->w1 = w1;
-
-  m->state = 1;
-
-  PD("sent to %d", to);
-}
-
-inline void ssmp_send3(int to, int w0, int w1, int w2) {
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  while(m->state);      
-
-  m->w0 = w0;
-  m->w1 = w1;
-  m->w2 = w2;
-
-  m->state = 1;
-
-  PD("sent to %d", to);
-}
-
-inline void ssmp_send4(int to, int w0, int w1, int w2, int w3) {
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  while(m->state);      
-
-  m->w0 = w0;
-  m->w1 = w1;
-  m->w2 = w2;
-  m->w3 = w3;
-
-  m->state = 1;
-
-  PD("sent to %d", to);
-}
-
-inline void ssmp_send5(int to, int w0, int w1, int w2, int w3, int w4) {
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  while(m->state);      
-
-  m->w0 = w0;
-  m->w1 = w1;
-  m->w2 = w2;
-  m->w3 = w3;
-  m->w4 = w4;
-
-  m->state = 1;
-
-  PD("sent to %d", to);
-}
-
-inline void ssmp_send6(int to, int w0, int w1, int w2, int w3, int w4, int w5) {
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  while(m->state);      
-
-  m->w0 = w0;
-  m->w1 = w1;
-  m->w2 = w2;
-  m->w3 = w3;
-  m->w4 = w4;
-  m->w5 = w5;
-
-  m->state = 1;
-
-  PD("sent to %d", to);
-}
-
-inline int ssmp_send_try1(int to, int w0) { 
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  if (!m->state) {
-    m->w0 = w0;
-
-    m->state = 1;
-    return 1;
-  }
-  return 0;
-}
-
-inline int ssmp_send_try2(int to, int w0, int w1) {
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  if (!m->state) {
-    m->w0 = w0;
-    m->w1 = w1;
-
-    m->state = 1;
-    return 1;
-  }
-  return 0;
-} 
-
-inline int ssmp_send_try3(int to, int w0, int w1, int w2) {
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  if (!m->state) {
-    m->w0 = w0;
-    m->w1 = w1;
-    m->w2 = w2;
-
-    m->state = 1;
-    return 1;
-  }
-  return 0;
-}
-
-inline int ssmp_send_try4(int to, int w0, int w1, int w2, int w3) {
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  if (!m->state) {
-    m->w0 = w0;
-    m->w1 = w1;
-    m->w2 = w2;
-    m->w3 = w3;
-
-    m->state = 1;
-    return 1;
-  }
-  return 0;
-}
-
-
-inline int ssmp_send_try5(int to, int w0, int w1, int w2, int w3, int w4) { 
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  if (!m->state) {
-    m->w0 = w0;
-    m->w1 = w1;
-    m->w2 = w2;
-    m->w3 = w3;
-    m->w4 = w4;
-
-    m->state = 1;
-    return 1;
-  }
-  return 0;
-}
-
-inline int ssmp_send_try6(int to, int w0, int w1, int w2, int w3, int w4, int w5) { 
-  volatile ssmp_msg_t *m = ssmp_send_buf[to];
-  
-  if (!m->state) {
-    m->w0 = w0;
-    m->w1 = w1;
-    m->w2 = w2;
-    m->w3 = w3;
-    m->w4 = w4;
-    m->w5 = w5;
-
-    m->state = 1;
-    return 1;
-  }
-  return 0;
 }
