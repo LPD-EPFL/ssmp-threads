@@ -142,7 +142,6 @@ int main(int argc, char **argv) {
   ssmp_barrier_wait(0);
   char keyF[100];
   sprintf(keyF,"/ssmp_to%02d_from%02d", ID, !ID);
-  PRINT("opening my local buff (%s)", keyF);
 
   int size = (512 + (2 * 512 + 18 * 512) + ((2 * 512 + 18 * 512) + 1706 * 48)) * sizeof(ssmp_msg_t);
 
@@ -179,7 +178,6 @@ int main(int argc, char **argv) {
   ssmp_barrier_wait(0);
 
   sprintf(keyF,"/ssmp_to%02d_from%02d", !ID, ID);
-  PRINT("opening my remote buff (%s)", keyF);
 
   
   ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
@@ -227,14 +225,6 @@ int main(int argc, char **argv) {
 
   msgp->w0 = 1;
 
-  {
-    uint32_t* combpui = (uint32_t*) local;
-    uint32_t i = 0;
-    printf("w %02d @ %p -- %llu\n", i, (combpui + i), ((uint64_t) (combpui + i) % 64));
-  }
-
-
-  uint8_t cur = 0;
   local[0].state = NO_MSG;
   local[1].state = NO_MSG;
 
@@ -255,9 +245,8 @@ int main(int argc, char **argv) {
   PF_MSG(3, "wait while(!recv)");
 
   sprintf(keyF,"/finc");
-  PRINT("opening my lock buff (%s)", keyF);
 
-  size = sizeof(ssmp_msg_t);
+  size = 16 * sizeof(ssmp_msg_t);
 
   ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
   if (ssmpfd<0) {
@@ -292,7 +281,14 @@ int main(int argc, char **argv) {
   uint32_t f;
   for (f = 0; f < 16; f++) finc[f] = 0;
 
-  pfd_store_init(nm);
+  pfd_store_init(10*nm);
+
+  uint32_t* wted_det = (uint32_t*) calloc(nm, sizeof(uint32_t));
+  assert(wted_det != NULL);
+
+  PREFETCHW(local);
+
+  srand(getticks() % 500009);
 
   ssmp_barrier_wait(0);
 
@@ -300,7 +296,7 @@ int main(int argc, char **argv) {
   /*  *  main functionality */
   /*  *********************************************************************************\/ */
 
-  ticks wtimes = 0, wc = 0, access_lat = 0;
+  ticks wtimes_snd = 0, wtimes_rcv = 0;
   uint32_t nm1 = nm;
 
   if (ID % 2 == 0) 
@@ -309,70 +305,157 @@ int main(int argc, char **argv) {
 
       uint32_t nm1 = nm;
 
-      while (nm1--)
+      for (nm1 = 0; nm1 < nm; nm1++)
 	{
+	  ssmp_barrier_wait(0);
+	  barrier_wait(finc);
+
 	  uint32_t wted = 0;
-	  //	  PF_START(0);
-	  PFDI();
+	  PFDI(0);
 	  PREFETCHW(local);
-	  _mm_sfence();
 	  while (local->state != MSG)
 	    {
 	      if (wted++)
-		{
-		  PREFETCHW(local);
-		  _mm_sfence();
-		  wait_cycles(wted * 6);
-		}
+	  	{
+	  	  PREFETCHW(local);
+	  	  //		  wait_cycles(wted * 6);
+	  	  //		  PFDO(1, wtimes_rcv - 1);
+	  	}
+	      wtimes_rcv++;
+	      //	      PFDI(1);
 	    }
+	  /* if (wted) */
+	  /*   { */
+	  /*     PFDO(1, wtimes_rcv - 1); */
+	  /*   } */
 	  memcpy(msgp, local, 64);
 	  local->state = NO_MSG;
-	  //	  PF_STOP(0);
-	  PFDO(0, nm-nm1-1);
+	  PFDO(0, nm1);
 
-	  wtimes += wted;
+
+	  wted_det[nm1] = wted;
+	  //	  printf("[%2d : %4d] ", nm1, wted);
+
+	  /* } */
+
+	  //	  wait_cycles(20000);
+	  /* for (nm1 = 0; nm1 < nm; nm1++) */
+	  /* 	{ */
+	  ssmp_barrier_wait(3);
+	  barrier_wait(finc + 16);
+	  /* **************************************** send */
+	  wted = 0;
+	  PFDI(1);
+	  PREFETCHW(remote);
+	  while (remote->state != NO_MSG)
+	    {
+	      if (wted++)
+	      	{
+	      	  PREFETCHW(remote);
+	      	  _mm_pause();
+	      	}
+	      wtimes_snd++;
+	    }
+
+	  msgp->state = MSG;
+	  memcpy(remote, msgp, 64);
+	  PFDO(1, nm1);
+
+	  barrier_wait(finc + 32);
+
+	  /* ssmp_barrier_wait(4); */
 	}
+      
+      PRINT(" ~~ waited before recv");
+      for (nm1 = 0; nm1 < nm; nm1++)
+	{
+	  printf("[ %2d: %4d] ", nm1, wted_det[nm1]);
+	}
+      printf("\n");	
+      barrier_wait(finc + 48);
     }
   else 			/* SENDER */
     {
       P("app core!");
-
 	
-      while (nm1--)
+      uint32_t wc = atoi(argv[5]);
+      for (nm1 = 0; nm1 < nm; nm1++)
 	{
-	  uint32_t wted = 0;
-	  wait_cycles(1024);
+	  ssmp_barrier_wait(0);
+	  barrier_wait(finc);
 
-	  //	  PF_START(0);
-	  PFDI();
+	  /* wait_cycles(wc); */
+
+	  uint32_t wted = 0;
+	  PFDI(1);
 	  PREFETCHW(remote);
-	  _mm_sfence();
 	  while (remote->state != NO_MSG)
 	    {
 	      if (wted++)
-		{
-		  PREFETCHW(local);
-		  _mm_pause();
-		  _mm_sfence();
-		}
+	      	{
+	      	  PREFETCHW(remote);
+	      	  _mm_pause();
+	      	}
+	      wtimes_snd++;
 	    }
+
 	  msgp->state = MSG;
 	  memcpy(remote, msgp, 64);
-	  //	  PF_STOP(0);
-	  PFDO(0, nm-nm1-1);
-	  wtimes += wted;
+	  PFDO(1, nm1);
+	  /* } */
+
+
+	  //	  wait_cycles(rand() % (1024 * 1024));
+	  wait_cycles(wc);
+	  /* for (nm1 = 0; nm1 < nm; nm1++) */
+	  /* 	{ */
+	  
+	  ssmp_barrier_wait(3);
+	  barrier_wait(finc + 16);
+
+	  /* **************************************** recv */
+
+	  PFDI(0);
+	  wted = 0;
+	  PREFETCHW(local);
+	  while (local->state != MSG)
+	    {
+	      if (wted++)
+	  	{
+	  	  PREFETCHW(local);
+	  	  wait_cycles(wted * 6);
+	  	}
+	      wtimes_rcv++;
+	    }
+	  memcpy(msgp, local, 64);
+	  local->state = NO_MSG;
+	  PFDO(0, nm1);
+
+	  wted_det[nm1] = wted;
+	  barrier_wait(finc + 32);
+	  /* ssmp_barrier_wait(4); */
 	}
+
+      barrier_wait(finc + 48);
+      PRINT(" ~~ waited before recv");
+      for (nm1 = 0; nm1 < nm; nm1++)
+	{
+	  printf("[ %2d: %4d] ", nm1, wted_det[nm1]);
+	}
+      printf("\n");	
+
     }
 
-  PRINT("wtimes = %10llu | avg wtimes = %.1f", wtimes, wtimes / (double) nm);
-
-
+  ssmp_barrier_wait(3);
+  PRINT("recv = %6llu : avg recv = %5.1f || snd = %6llu : avg snd = %.1f", 
+	wtimes_rcv, wtimes_rcv / (double) nm,  wtimes_snd, wtimes_snd / (double) nm);
   for (nm1 = 0; nm1 < num_procs; nm1++)
     {
       if (ID == nm1)
 	{
-	  //	  PF_PRINT;
-	  PFDP(0, nm);
+	  PF_PRINT;
+	  PFDPN(0, nm, 29);
+	  PFDPN(1, nm, 29);
 	}
       ssmp_barrier_wait(0);
     }

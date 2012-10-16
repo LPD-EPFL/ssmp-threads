@@ -22,6 +22,7 @@
 #include "ssmp_recv.h"
 
 #include "measurements.h"
+#include "pfd.h"
 
 int num_procs = 2;
 long long int nm = 100000000;
@@ -164,6 +165,17 @@ int main(int argc, char **argv) {
 
   uint32_t f;
   for (f = 0; f < 16; f++) finc[f] = 0;
+
+  PFDINIT(nm);
+
+  uint32_t wc = 0;
+  if (argc > 5)
+    {
+      wc = atoi(argv[5]);
+    }
+  PRINT("wc = %u", wc);
+
+
   ssmp_barrier_wait(0);
 
   /********************************************************************************* 
@@ -172,97 +184,66 @@ int main(int argc, char **argv) {
   if (ID % 2 == 0) {
     P("service core!");
 
-    unsigned int from = ID+1;
-    unsigned int old = nm-1;
-    
-    //    ssmp_barrier_wait(0);
+    uint32_t from = ID+1;
+    uint32_t out = nm-1;
+    uint32_t idx = 0; 
+    uint32_t expected = 0;
 
 
     while(1) 
       {
-	/* barrier_wait(finc); */
+	/* ssmp_barrier_wait(0); */
 
-	PF_START(1);
-	//	ssmp_recv_from(from, msgp, 64);
-	ssmp_recv_from_socket(from, msgp);
-	PF_STOP(1);
+	PFDI(0);
+	ssmp_recv_from(from, msgp, 64);
+	PFDO(0, idx);
 
-	/* barrier_wait(finc+1); */
 
-	/* PF_START(2); */
-	/* ssmp_send(from, msgp, 64); */
-	/* PF_STOP(2); */
+	/* ssmp_barrier_wait(2); */
 
-	if (msgp->w0 == 0) {
+	PFDI(1);
+	ssmp_send(from, msgp, 64);
+	PFDO(1, idx);
+
+	if (msgp->w0 == out) {
 	  PRINT("done..");
 	  break;
 	}
-	/* if (msgp->w0 != old) { */
-	/*   PRINT("w0 -- expected %d, got %d", old, msgp->w0); */
-	/* } */
-	/* if (msgp->w5 != old) { */
-	/*   PRINT("w5 -- expected %d, got %d", old, msgp->w5); */
-	/* } */
-	/* old--; */
-	//	ssmp_barrier_wait(0);
-	      
+
+	if (msgp->w0 != expected++)
+	  {
+	    PRINT(" *** expected %5d, got %5d", expected, msgp->w0);
+	  }
+
+
+	idx++;
       }
   }
   else 
     {
       P("app core!");
-      uint32_t wc = 0;
-      if (argc > 5)
-	{
-	  wc = atoi(argv[5]);
-	}
-      PRINT("wc = %u", wc);
       unsigned int to = ID-1;
       long long int nm1 = nm;
 
-      while (nm1--) {
-	//	ssmp_barrier_wait(0);
-	/* barrier_wait(finc); */
+      PF_START(0);
+      for (nm1 = 0; nm1 < nm; nm1++)
+	{
+	  /* ssmp_barrier_wait(0); */
 
-	msgp->w0 = nm1;
-	/* msgp->w1 = nm1; */
-	/* msgp->w2 = nm1; */
-	/* msgp->w3 = nm1; */
-	/* msgp->w4 = nm1; */
-	/* msgp->w5 = nm1; */
+	  msgp->w0 = nm1;
+	  PFDI(1);
+	  ssmp_send(to, msgp, 64);
+	  PFDO(1, nm1);
 
 
-	wait_cycles(wc);
-	//    _mm_clflush((void*) ssmp_recv_buf[to]);
-	/* PF_START(2);
-	/* //	ssmp_send(to, msgp, 64); */
-	/* ssmp_put(to, msgp); */
-	/* PF_STOP(2); */
+	  /* ssmp_barrier_wait(2); */
 
-	/* barrier_wait(finc+1); */
-
-	PF_START(1);
-	//	ssmp_recv_from(to, msgp, 64);
-	ssmp_send_socket(to, msgp);
-	PF_STOP(1);
-
-      }
+	  PFDI(0);
+	  ssmp_recv_from(to, msgp, 64);
+	  PFDO(0, nm1);
+	}
+      PF_STOP(0);
     }
-
-
-  /* double _end = wtime(); */
-  /* double _time = _end - _start; */
-
-  /* ticks _ticksm =(ticks) ((double)_ticks / nm); */
-  /* double lat = (double) (1000*1000*1000*_time) / nm; */
-  /* printf("[%2d] sent %lld msgs\n\t" */
-  /* 	 "in %f secs\n\t" */
-  /* 	 "%.2f msgs/us\n\t" */
-  /* 	 "%f ns latency\n" */
-  /* 	 "in ticks:\n\t" */
-  /* 	 "in %lld ticks\n\t" */
-  /* 	 "%lld ticks/msg\n", ID, nm, _time, ((double)nm/(1000*1000*_time)), lat, */
-  /* 	 (long long unsigned int) _ticks, (long long unsigned int) _ticksm); */
 
 
   extern uint64_t waited, waited_send;
@@ -272,10 +253,12 @@ int main(int argc, char **argv) {
     {
       if (c == ssmp_id())
 	{
-	  PRINT(" - - waited: recv: %llu / %0.2f | send: %llu / %0.2f", 
-		waited, waited / (double) nm,
-		waited_send, waited_send / (double) nm);
+	  /* PRINT(" - - waited: recv: %llu / %0.2f | send: %llu / %0.2f",  */
+	  /* 	waited, waited / (double) nm, */
+	  /* 	waited_send, waited_send / (double) nm); */
 	  PF_PRINT;
+	  PFDPN(0, nm, wc);
+	  PFDPN(1, nm, wc);
 	}
       ssmp_barrier_wait(0);
     }
