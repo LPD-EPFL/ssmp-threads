@@ -197,7 +197,7 @@ extern void ssmp_term(void);
 /* blocking in the sense that the data are copied to the receiver's buffer */
 extern inline void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, size_t length);
 extern inline void ssmp_send_socket(uint32_t to, volatile ssmp_msg_t *msg);
-extern inline void ssmp_put(uint32_t to, ssmp_msg_t *msg);
+extern inline void ssmp_put(uint32_t to, volatile ssmp_msg_t *msg);
 
 extern inline void ssmp_send_sig(int to);
 extern inline void ssmp_send_big(int to, void *data, int length);

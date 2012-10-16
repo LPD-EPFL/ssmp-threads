@@ -14,15 +14,19 @@ extern ssmp_barrier_t *ssmp_barrier;
 
 inline void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg, uint32_t length) {
   volatile ssmp_msg_t* tmpm = ssmp_recv_buf[from];
-  PREFETCHW(tmpm);
 
 #ifdef USE_ATOMIC
   while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_MESSG, BUF_LOCKD)) {
     wait_cycles(WAIT_TIME);
   }
 #else
+  PREFETCHW(tmpm);
+  int32_t wted = 0;
+
   while(tmpm->state != BUF_MESSG) 
     {
+      _mm_pause_rep(wted++);
+      asm("");
       PREFETCHW(tmpm);
     }
 #endif
@@ -181,6 +185,16 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_fr
 	      msg->sender = cbuf->from[from];
 
 	      tmpm->state = BUF_EMPTY;
+
+	      if (from < num_ues - 1)
+	      	{
+	      	  PREFETCHW(buf[from + 1]);
+	      	}
+	      else
+	      	{
+	      	  PREFETCHW(buf[0]);
+	      	}
+
 	      return from;
 	    }
       }
