@@ -33,7 +33,7 @@ void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg, uint32_t length)
     }
 #endif
   
-  CPY_LLINTS(msg, tmpm, length);
+  memcpy(msg, tmpm, length);
   tmpm->state = BUF_EMPTY;
 }
 
@@ -56,7 +56,7 @@ ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length)
 #endif
 	      {
 		volatile ssmp_msg_t* tmpm = cbuf->buf[from];
-		CPY_LLINTS(msg, tmpm, length);
+		memcpy(msg, tmpm, length);
 		msg->sender = cbuf->from[from];
 
 		tmpm->state = BUF_EMPTY;
@@ -85,7 +85,7 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_fr
 #endif
 	    {
 	      volatile ssmp_msg_t* tmpm = cbuf->buf[from];
-	      CPY_LLINTS(msg, tmpm, 64);
+	      memcpy(msg, tmpm, 64);
 	      msg->sender = cbuf->from[from];
 
 	      tmpm->state = BUF_EMPTY;

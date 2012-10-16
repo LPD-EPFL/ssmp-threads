@@ -18,6 +18,12 @@
 #endif /* PLATFORM_NUMA */
 
 /* ------------------------------------------------------------------------------- */
+/* settings */
+/* ------------------------------------------------------------------------------- */
+#define USE_ATOMIC_
+#define WAIT_TIME 66
+
+/* ------------------------------------------------------------------------------- */
 /* defines */
 /* ------------------------------------------------------------------------------- */
 #define SSMP_NUM_BARRIERS 16 /*number of available barriers*/
@@ -28,8 +34,13 @@
 #define BUF_MESSG 1
 #define BUF_LOCKD 2
 
-#define USE_ATOMIC_
 
+#define PREFETCHW(x) asm volatile("prefetchw %0" :: "m" (*(unsigned long *)x)) /* write */
+#define PREFETCH(x) asm volatile("prefetch %0" :: "m" (*(unsigned long *)x)) /* read */
+#define PREFETCHNTA(x) asm volatile("prefetchnta %0" :: "m" (*(unsigned long *)x)) /* non-temporal */
+#define PREFETCHT0(x) asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x)) /* all levels */
+#define PREFETCHT1(x) asm volatile("prefetcht1 %0" :: "m" (*(unsigned long *)x)) /* all but L1 */
+#define PREFETCHT2(x) asm volatile("prefetcht2 %0" :: "m" (*(unsigned long *)x)) /* all but L1 & L2 */
 
 #define SP(args...) printf("[%d] ", ssmp_id_); printf(args); printf("\n"); fflush(stdout)
 #ifdef SSMP_DEBUG
@@ -45,54 +56,6 @@
 #    define ALIGNED(N)
 #  endif
 #endif
-
-#define USE_MEMCPY
-
-#ifdef USE_MEMCPY
-#define CPY_LLINTS(to, from, length)		\
-  memcpy(to, from, length)
-#else
-#define CPY_LLINTS(to, from, num)		\
-  switch (num/sizeof(int)) {			\
-  case 1:					\
-    to->w0 = from->w0;				\
-    break;					\
-  case 2:					\
-    to->w0 = from->w0;				\
-    to->w1 = from->w1;				\
-    break;					\
-  case 3:					\
-    to->w0 = from->w0;				\
-    to->w1 = from->w1;				\
-    to->w2 = from->w2;				\
-    break;					\
-  case 4:					\
-    to->w0 = from->w0;				\
-    to->w1 = from->w1;				\
-    to->w2 = from->w2;				\
-    to->w3 = from->w3;				\
-    break;					\
-  case 5:					\
-    to->w0 = from->w0;				\
-    to->w1 = from->w1;				\
-    to->w2 = from->w2;				\
-    to->w3 = from->w3;				\
-    to->w4 = from->w4;				\
-    break;					\
-  case 6:					\
-    to->w0 = from->w0;				\
-    to->w1 = from->w1;				\
-    to->w2 = from->w2;				\
-    to->w3 = from->w3;				\
-    to->w4 = from->w4;				\
-    to->w5 = from->w5;				\
-    break;					\
-  default:					\
-    memcpy(to, from, sizeof(int)*num);		\
-  }
-#endif /* USE_MEMCPY */
-
-#define WAIT_TIME 66
 
 /* ------------------------------------------------------------------------------- */
 /* types */
@@ -147,12 +110,6 @@ typedef struct
 volatile extern ssmp_msg_t **ssmp_recv_buf;
 volatile extern ssmp_msg_t **ssmp_send_buf;
 
-#define PREFETCHW(x) asm volatile("prefetchw %0" :: "m" (*(unsigned long *)x)) /* write */
-#define PREFETCH(x) asm volatile("prefetch %0" :: "m" (*(unsigned long *)x)) /* read */
-#define PREFETCHNTA(x) asm volatile("prefetchnta %0" :: "m" (*(unsigned long *)x)) /* non-temporal */
-#define PREFETCHT0(x) asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x)) /* all levels */
-#define PREFETCHT1(x) asm volatile("prefetcht1 %0" :: "m" (*(unsigned long *)x)) /* all but L1 */
-#define PREFETCHT2(x) asm volatile("prefetcht2 %0" :: "m" (*(unsigned long *)x)) /* all but L1 & L2 */
 /* ------------------------------------------------------------------------------- */
 /* init / term the MP system */
 /* ------------------------------------------------------------------------------- */
