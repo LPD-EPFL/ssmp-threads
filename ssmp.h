@@ -127,23 +127,23 @@ extern void ssmp_term(void);
 
 /* blocking send length words to to */
 /* blocking in the sense that the data are copied to the receiver's buffer */
-extern inline void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, size_t length);
-extern inline void ssmp_send_big(int to, void *data, int length);
+extern inline void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg);
+extern inline void ssmp_send_big(int to, void *data, size_t length);
 
 /* ------------------------------------------------------------------------------- */
 /* broadcasting functions */
 /* ------------------------------------------------------------------------------- */
 
 /* broadcast length bytes using blocking sends */
-extern inline void ssmp_broadcast(ssmp_msg_t *msg, int length);
+extern inline void ssmp_broadcast(ssmp_msg_t *msg);
 
 /* ------------------------------------------------------------------------------- */
 /* receiving functions : default is blocking */
 /* ------------------------------------------------------------------------------- */
 
 /* blocking receive from process from length bytes */
-extern inline void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg, uint32_t length);
-extern inline void ssmp_recv_from_big(int from, void *data, int length);
+extern inline void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg);
+extern inline void ssmp_recv_from_big(int from, void *data, size_t length);
 
 /* blocking receive from any proc. 
    Sender at msg->sender */
@@ -158,7 +158,7 @@ extern void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int));
 extern void ssmp_color_buf_free(ssmp_color_buf_t *cbuf);
 
 /* blocking receive from any of the participants according to the color function */
-extern inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length);
+extern inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg);
 extern inline uint32_t ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_from);
 
 /* ------------------------------------------------------------------------------- */

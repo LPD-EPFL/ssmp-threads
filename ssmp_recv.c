@@ -13,7 +13,7 @@ extern ssmp_barrier_t *ssmp_barrier;
 /* ------------------------------------------------------------------------------- */
 
 inline 
-void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg, uint32_t length) 
+void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg) 
 {
   volatile ssmp_msg_t* tmpm = ssmp_recv_buf[from];
 
@@ -33,12 +33,12 @@ void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg, uint32_t length)
     }
 #endif
   
-  memcpy(msg, tmpm, length);
+  memcpy(msg, tmpm, SSMP_CACHE_LINE_SIZE);
   tmpm->state = BUF_EMPTY;
 }
 
 inline void 
-ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length)
+ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 {
   uint32_t from;
   uint32_t num_ues = cbuf->num_ues;
@@ -56,7 +56,7 @@ ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, int length)
 #endif
 	      {
 		volatile ssmp_msg_t* tmpm = cbuf->buf[from];
-		memcpy(msg, tmpm, length);
+		memcpy(msg, tmpm, SSMP_CACHE_LINE_SIZE);
 		msg->sender = cbuf->from[from];
 
 		tmpm->state = BUF_EMPTY;
@@ -107,7 +107,7 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_fr
 }
 
 inline 
-void ssmp_recv_from_big(int from, void *data, int length) 
+void ssmp_recv_from_big(int from, void *data, size_t length) 
 {
   int last_chunk = length % SSMP_CHUNK_SIZE;
   int num_chunks = length / SSMP_CHUNK_SIZE;

@@ -140,67 +140,61 @@ int main(int argc, char **argv) {
   uint32_t lim_zeros = num_dsl;
   ssmp_barrier_wait(0);
 
-  if (color_dsl(ID)) {
-    PRINT("dsl core");
+  if (color_dsl(ID)) 
+    {
+      PRINT("dsl core");
 
-    while(1) {
-      //      wait_cycles(wcycles);
+      while(1) 
+	{
+	  /* wait_cycles(wcycles); */
 
-      PF_START(0);
-      last_recv_from = ssmp_recv_color_start(cbuf, msg, last_recv_from + 1);
-      PF_STOP(0);
+	  PF_START(0);
+	  last_recv_from = ssmp_recv_color_start(cbuf, msg, last_recv_from + 1);
+	  PF_STOP(0);
 
-      //      PRINT(" <<<<<<<<<<<<< %4d from %d", msg->w0, msg->sender);
+	  PF_START(1);
+	  ssmp_send(msg->sender, msg);
+	  PF_STOP(1);
 
-      PF_START(1);
-      ssmp_send(msg->sender, msg, 64);
-      PF_STOP(1);
-
-      if (msg->w0 < lim_zeros) {
-	if (--num_zeros == 0)
-	  {
-	    P("done ..");
-	    break;
+	  if (msg->w0 < lim_zeros) {
+	    if (--num_zeros == 0)
+	      {
+		P("done ..");
+		break;
+	      }
 	  }
-      }
 
+	}
     }
-  }
   else {
-    //    unsigned int to = ID-1;
     unsigned int to = 0, to_idx = 0;
     long long int nm1 = nm;
 
     ssmp_barrier_wait(1);
-    while (nm1--) {
-      PF_START(2);
-      to = dsl_seq[to_idx++];
-      if (to_idx == num_dsl)
-	{
-	  to_idx = 0;
+    while (nm1--)
+      {
+	PF_START(2);
+	to = dsl_seq[to_idx++];
+	if (to_idx == num_dsl)
+	  {
+	    to_idx = 0;
+	  }
+	//	PREFETCHW(ssmp_send_buf[dsl_seq[to_idx]]);
+
+	msg->w0 = nm1;
+	PF_START(1);
+	ssmp_send(to, msg);
+	PF_STOP(1);
+
+	PF_START(0);
+	ssmp_recv_from(to, msg);
+	PF_STOP(0);
+	PF_STOP(2);
+
+	if (msg->w0 != nm1) {
+	  P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
 	}
-      PREFETCHW(ssmp_send_buf[dsl_seq[to_idx]]);
-      //      PRINT("%6d >> %d", nm1, to);
-
-
-      msg->w0 = nm1;
-      PF_START(1);
-      ssmp_send(to, msg, 64);
-      PF_STOP(1);
-
-      //      wait_cycles(wcycles);
-
-      PF_START(0);
-      ssmp_recv_from(to, msg, 64);
-      PF_STOP(0);
-      PF_STOP(2);
-
-      //      PRINT("%6d << %d", msg->w0, to);
-
-      if (msg->w0 != nm1) {
-	P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
       }
-    }
   }
 
   

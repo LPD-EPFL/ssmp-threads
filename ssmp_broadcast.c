@@ -13,14 +13,14 @@ extern ssmp_barrier_t *ssmp_barrier;
 /* broadcasting functions */
 /* ------------------------------------------------------------------------------- */
 
-inline void ssmp_broadcast(ssmp_msg_t *msg, int length) {
+inline void ssmp_broadcast(ssmp_msg_t *msg) {
   int core;
   for (core = 0; core < ssmp_num_ues_; core++) {
     if (core == ssmp_id_) {
       continue;
     }
     
-    ssmp_send(core, msg, length);
+    ssmp_send(core, msg);
   }
 }
 

@@ -15,7 +15,7 @@ static volatile ssmp_msg_t *tmpm;
 
 
 inline 
-void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, size_t length) 
+void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg) 
 {
   volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
   
@@ -36,7 +36,7 @@ void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg, size_t length)
 }
 
 inline 
-void ssmp_send_big(int to, void *data, int length) 
+void ssmp_send_big(int to, void *data, size_t length) 
 {
   int last_chunk = length % SSMP_CHUNK_SIZE;
   int num_chunks = length / SSMP_CHUNK_SIZE;
