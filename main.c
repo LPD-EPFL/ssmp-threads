@@ -21,6 +21,7 @@
 #include "ssmp_recv.h"
 #include "ssmp_send.h"
 #include "measurements.h"
+#include "pfd.h"
 
 
 #define COLOR_BUF
@@ -35,11 +36,12 @@ uint32_t num_dsl = 0;
 uint32_t num_app = 0;
 uint32_t dsl_seq[48];
 
-uint32_t wcycles = 2;
+uint32_t dsl_per_core = 2;
+uint32_t wcycles[4];
 
 int color_dsl(int id)
 {
-  return (id % wcycles == 0);
+  return (id % dsl_per_core == 0);
 }
 
 uint32_t nth_dsl(int id)
@@ -60,6 +62,29 @@ int color_app1(int id)
   return !(color_dsl(id));
 }
 
+
+static uint8_t node_to_node_hops[8][8] =
+  {
+  /* 0  1  2  3  4  5  6  7           */
+    {0, 1, 2, 3, 2, 3, 2, 3},	/* 0 */
+    {1, 0, 3, 2, 3, 2, 3, 2},	/* 1 */
+    {2, 3, 0, 1, 2, 3, 2, 3},	/* 2 */
+    {3, 2, 1, 0, 3, 2, 3, 2},	/* 3 */
+    {2, 3, 2, 3, 0, 1, 2, 3},	/* 4 */
+    {3, 2, 3, 2, 1, 0, 3, 2},	/* 5 */
+    {2, 3, 2, 3, 2, 3, 0, 1},	/* 6 */
+    {3, 2, 3, 2, 3, 2, 1, 0},	/* 7 */
+  };
+
+static inline uint32_t 
+get_num_hops(uint32_t core1, uint32_t core2)
+{
+  uint32_t hops = node_to_node_hops[core1 / 6][core2 / 6];
+  //  PRINT("%2d is %d hop", core2, hops);
+  return hops;
+}
+
+
 int main(int argc, char **argv) {
   if (argc > 1) {
     num_procs = atoi(argv[1]);
@@ -70,8 +95,21 @@ int main(int argc, char **argv) {
 
   if (argc > 3)
     {
-      wcycles = atoi(argv[3]);
+      dsl_per_core = atoi(argv[3]);
     }
+
+  if (argc < 7)
+    {
+      PRINT("need 6 params");
+      return -1;
+    }
+
+  wcycles[0] = atoi(argv[4]);
+  wcycles[1] = atoi(argv[5]);
+  wcycles[2] = atoi(argv[6]);
+  wcycles[3] = atoi(argv[7]);
+
+  PRINT("****************************** %5d - %5d - %5d - %5d", wcycles[0], wcycles[1], wcycles[2], wcycles[3]);
 
   ID = 0;
   printf("NUM of processes: %d\n", num_procs);
@@ -83,13 +121,11 @@ int main(int argc, char **argv) {
     {
       if (color_dsl(i))
 	{
-	  printf("%2d -> DSL\n", i);
 	  num_dsl++;
 	  dsl_seq[dsl_seq_idx++] = i;
 	}
       else
 	{
-	  printf("%2d -> APP\n", i);
 	  num_app++;
 	}
     }
@@ -103,7 +139,6 @@ int main(int argc, char **argv) {
 
   int rank;
   for (rank = 1; rank < num_procs; rank++) {
-    P("Forking child %d", rank);
     pid_t child = fork();
     if (child < 0) {
       P("Failure in fork():\n%s", strerror(errno));
@@ -115,7 +150,7 @@ int main(int argc, char **argv) {
 
  fork_done:
   ID = rank;
-  set_cpu(ID);
+  set_cpu(id_to_core[ID]);
   ssmp_mem_init(ID, num_procs);
 
   ssmp_color_buf_t *cbuf = NULL;
@@ -129,8 +164,6 @@ int main(int argc, char **argv) {
   msg = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
   assert(msg != NULL);
 
-  uint32_t last_recv_from = 0;
-
   PF_MSG(0, "recv");
   PF_MSG(1, "send");
   PF_MSG(2, "roundtrip");
@@ -138,23 +171,44 @@ int main(int argc, char **argv) {
 
   uint32_t num_zeros = num_app;
   uint32_t lim_zeros = num_dsl;
+
+  getticks_correction_calc();
+
+  PFDINIT((num_app/num_dsl)*nm + 96);
+
   ssmp_barrier_wait(0);
+
+  uint32_t cur = 0;
+
+  /* ********************************************************************************
+     main functionality
+   *********************************************************************************/
 
   if (color_dsl(ID)) 
     {
+
       PRINT("dsl core");
 
+      PF_START(3);
       while(1) 
 	{
 	  /* wait_cycles(wcycles); */
 
-	  PF_START(0);
-	  last_recv_from = ssmp_recv_color_start(cbuf, msg, last_recv_from + 1);
-	  PF_STOP(0);
+	  /* PF_START(0); */
+	  ssmp_recv_color_start(cbuf, msg);
+	  /* PF_STOP(0); */
 
-	  PF_START(1);
+	  /* uint32_t s = msg->sender; */
+	  /* PREFETCHW(ssmp_send_buf[s]); */
+
+	  _mm_pause_rep(30);
+	  //	  PF_START(1);
+	  PFDI(0);
 	  ssmp_send(msg->sender, msg);
-	  PF_STOP(1);
+	  PFDO(0, cur++);
+
+	  //	  PF_STOP(1);
+	  
 
 	  if (msg->w0 < lim_zeros) {
 	    if (--num_zeros == 0)
@@ -163,38 +217,60 @@ int main(int argc, char **argv) {
 		break;
 	      }
 	  }
-
 	}
+      PF_STOP(3);
     }
   else {
     unsigned int to = 0, to_idx = 0;
     long long int nm1 = nm;
 
     ssmp_barrier_wait(1);
+    PF_START(3);
     while (nm1--)
       {
 	PF_START(2);
+	msg->w0 = nm1;
+	/* PF_START(1); */
+	ssmp_send(to, msg);
+	/* PF_STOP(1); */
+	
+	uint32_t hops = get_num_hops(get_cpu(), to);
+	wait_cycles(wcycles[hops]);
+	/* switch (hops) */
+	/*   { */
+	/*   case 0: */
+	/*     wait_cycles(820); */
+	/*     break; */
+	/*   case 1: */
+	/*     wait_cycles(wcycles1); */
+	/*     break; */
+	/*   case 2: */
+	/*     wait_cycles(wcycles2); */
+	/*     break; */
+	/*   case 3: */
+	/*     wait_cycles(wcycles3); */
+	/*   default: */
+	/*     ; */
+	/*   } */
+
+	/* PF_START(0); */
+	ssmp_recv_from(to, msg);
+	/* PF_STOP(0); */
+
 	to = dsl_seq[to_idx++];
 	if (to_idx == num_dsl)
 	  {
 	    to_idx = 0;
 	  }
-	//	PREFETCHW(ssmp_send_buf[dsl_seq[to_idx]]);
+	/* PREFETCHW(ssmp_send_buf[dsl_seq[to_idx]]); */
 
-	msg->w0 = nm1;
-	PF_START(1);
-	ssmp_send(to, msg);
-	PF_STOP(1);
-
-	PF_START(0);
-	ssmp_recv_from(to, msg);
-	PF_STOP(0);
 	PF_STOP(2);
 
 	if (msg->w0 != nm1) {
 	  P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
 	}
       }
+    /* PF_STOP(3); */
   }
 
   
@@ -204,6 +280,10 @@ int main(int argc, char **argv) {
       if (c == ssmp_id())
   	{
 	  PF_PRINT;
+	  if (color_dsl(c))
+	    {
+	      PFDPN(0, cur, 10);
+	    }
   	}
       ssmp_barrier_wait(0);
     }
