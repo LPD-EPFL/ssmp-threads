@@ -24,6 +24,7 @@
 #define WAIT_TIME 66
 
 extern uint8_t id_to_core[];
+extern const uint8_t node_to_node_hops[8][8];
 /* ------------------------------------------------------------------------------- */
 /* defines */
 /* ------------------------------------------------------------------------------- */
@@ -177,8 +178,11 @@ extern inline void ssmp_barrier_wait(int barrier_num);
 /* help funcitons */
 /* ------------------------------------------------------------------------------- */
 extern inline double wtime(void);
-extern inline void wait_cycles(unsigned int cycles);
+extern inline void wait_cycles(uint64_t cycles);
 extern inline void _mm_pause_rep(uint32_t num_reps);
+extern inline uint32_t get_num_hops(uint32_t core1, uint32_t core2);
+
+
 
 extern void set_cpu(int cpu);
 extern inline uint32_t get_cpu();

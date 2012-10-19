@@ -16,6 +16,20 @@ uint8_t id_to_core[] =
   };
 
 
+const uint8_t node_to_node_hops[8][8] =
+  {
+  /* 0  1  2  3  4  5  6  7           */
+    {0, 1, 2, 3, 2, 3, 2, 3},	/* 0 */
+    {1, 0, 3, 2, 3, 2, 3, 2},	/* 1 */
+    {2, 3, 0, 1, 2, 3, 2, 3},	/* 2 */
+    {3, 2, 1, 0, 3, 2, 3, 2},	/* 3 */
+    {2, 3, 2, 3, 0, 1, 2, 3},	/* 4 */
+    {3, 2, 3, 2, 1, 0, 3, 2},	/* 5 */
+    {2, 3, 2, 3, 2, 3, 0, 1},	/* 6 */
+    {3, 2, 3, 2, 3, 2, 1, 0},	/* 7 */
+  };
+
+
 /* ------------------------------------------------------------------------------- */
 /* library variables */
 /* ------------------------------------------------------------------------------- */
@@ -463,7 +477,7 @@ inline double wtime(void)
 }
 
 inline void 
-wait_cycles(uint32_t cycles)
+wait_cycles(uint64_t cycles)
 {
   if (cycles < 256)
     {
@@ -488,6 +502,14 @@ _mm_pause_rep(uint32_t num_reps)
     {
       _mm_pause();
     }
+}
+
+inline uint32_t 
+get_num_hops(uint32_t core1, uint32_t core2)
+{
+  uint32_t hops = node_to_node_hops[core1 / 6][core2 / 6];
+  //  PRINT("%2d is %d hop", core2, hops);
+  return hops;
 }
 
 void set_cpu(int cpu) {

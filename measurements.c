@@ -32,14 +32,16 @@ prints_ticks_stats(int start, int end)
   unsigned long long tsamples = 0;
   ticks tticks = 0;
 
-  for (i = start; i < end; i++) {
-    if (total_samples[i]) {
-      have_output = 1;
-      mpoints++;
-      tsamples += total_samples[i];
-      tticks += total_sum_ticks[i];
+  for (i = start; i < end; i++) 
+    {
+      if (total_samples[i]) 
+	{
+	  have_output = 1;
+	  mpoints++;
+	  tsamples += total_samples[i];
+	  tticks += total_sum_ticks[i];
+	}
     }
-  }
   
   if (have_output)
     {

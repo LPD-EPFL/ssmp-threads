@@ -63,28 +63,6 @@ int color_app1(int id)
 }
 
 
-static uint8_t node_to_node_hops[8][8] =
-  {
-  /* 0  1  2  3  4  5  6  7           */
-    {0, 1, 2, 3, 2, 3, 2, 3},	/* 0 */
-    {1, 0, 3, 2, 3, 2, 3, 2},	/* 1 */
-    {2, 3, 0, 1, 2, 3, 2, 3},	/* 2 */
-    {3, 2, 1, 0, 3, 2, 3, 2},	/* 3 */
-    {2, 3, 2, 3, 0, 1, 2, 3},	/* 4 */
-    {3, 2, 3, 2, 1, 0, 3, 2},	/* 5 */
-    {2, 3, 2, 3, 2, 3, 0, 1},	/* 6 */
-    {3, 2, 3, 2, 3, 2, 1, 0},	/* 7 */
-  };
-
-static inline uint32_t 
-get_num_hops(uint32_t core1, uint32_t core2)
-{
-  uint32_t hops = node_to_node_hops[core1 / 6][core2 / 6];
-  //  PRINT("%2d is %d hop", core2, hops);
-  return hops;
-}
-
-
 int main(int argc, char **argv) {
   if (argc > 1) {
     num_procs = atoi(argv[1]);
@@ -201,7 +179,7 @@ int main(int argc, char **argv) {
 	  /* uint32_t s = msg->sender; */
 	  /* PREFETCHW(ssmp_send_buf[s]); */
 
-	  _mm_pause_rep(30);
+	  _mm_pause_rep(16);
 	  //	  PF_START(1);
 	  PFDI(0);
 	  ssmp_send(msg->sender, msg);
@@ -236,22 +214,6 @@ int main(int argc, char **argv) {
 	
 	uint32_t hops = get_num_hops(get_cpu(), to);
 	wait_cycles(wcycles[hops]);
-	/* switch (hops) */
-	/*   { */
-	/*   case 0: */
-	/*     wait_cycles(820); */
-	/*     break; */
-	/*   case 1: */
-	/*     wait_cycles(wcycles1); */
-	/*     break; */
-	/*   case 2: */
-	/*     wait_cycles(wcycles2); */
-	/*     break; */
-	/*   case 3: */
-	/*     wait_cycles(wcycles3); */
-	/*   default: */
-	/*     ; */
-	/*   } */
 
 	/* PF_START(0); */
 	ssmp_recv_from(to, msg);
