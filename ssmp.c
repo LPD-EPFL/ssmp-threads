@@ -3,6 +3,19 @@
 //#define SSMP_DEBUG
 
 
+uint8_t id_to_core[] =
+  {
+    0, 1, 2, 3, 4, 5,
+    6, 7, 8, 9, 10, 11, 
+    12, 13, 14, 15, 16, 17, 
+    18, 19, 20, 21, 22, 23, 
+    24, 25, 26, 27, 28, 29, 
+    30, 31, 32, 33, 34, 35, 
+    36, 37, 38, 39, 40, 41, 
+    42, 43, 44, 45, 46, 47 
+  };
+
+
 /* ------------------------------------------------------------------------------- */
 /* library variables */
 /* ------------------------------------------------------------------------------- */
@@ -17,6 +30,7 @@ int ssmp_id_;
 int last_recv_from;
 ssmp_barrier_t *ssmp_barrier;
 int *ues_initialized;
+static uint32_t ssmp_my_core;
 
 
 /* ------------------------------------------------------------------------------- */
@@ -451,7 +465,7 @@ inline double wtime(void)
 inline void 
 wait_cycles(uint32_t cycles)
 {
-  if (cycles < 512)
+  if (cycles < 256)
     {
       cycles /= 6;
       while (cycles--)
@@ -477,6 +491,8 @@ _mm_pause_rep(uint32_t num_reps)
 }
 
 void set_cpu(int cpu) {
+  ssmp_my_core = cpu;
+
   cpu_set_t mask;
   CPU_ZERO(&mask);
   CPU_SET(cpu, &mask);
@@ -492,6 +508,12 @@ void set_cpu(int cpu) {
   numa_set_preferred(numa_node);  
 #endif /* PLATFORM_NUMA */
   
+}
+
+inline uint32_t
+get_cpu()
+{
+  return ssmp_my_core;
 }
 
 #if defined(__i386__)

@@ -195,15 +195,15 @@ int main(int argc, char **argv) {
 	/* ssmp_barrier_wait(0); */
 
 	PFDI(0);
-	ssmp_recv_from(from, msgp, 64);
+	ssmp_recv_from(from, msgp);
 	PFDO(0, idx);
 
 
 	/* ssmp_barrier_wait(2); */
 
-	PFDI(1);
-	ssmp_send(from, msgp, 64);
-	PFDO(1, idx);
+	/* PFDI(1); */
+	/* ssmp_send(from, msgp); */
+	/* PFDO(1, idx); */
 
 	if (msgp->w0 == out) {
 	  PRINT("done..");
@@ -225,24 +225,22 @@ int main(int argc, char **argv) {
       unsigned int to = ID-1;
       long long int nm1 = nm;
 
-      PF_START(0);
       for (nm1 = 0; nm1 < nm; nm1++)
 	{
 	  /* ssmp_barrier_wait(0); */
 
 	  msgp->w0 = nm1;
 	  PFDI(1);
-	  ssmp_send(to, msgp, 64);
+	  ssmp_send(to, msgp);
 	  PFDO(1, nm1);
 
 
 	  /* ssmp_barrier_wait(2); */
 
-	  PFDI(0);
-	  ssmp_recv_from(to, msgp, 64);
-	  PFDO(0, nm1);
+	  /* PFDI(0); */
+	  /* ssmp_recv_from(to, msgp); */
+	  /* PFDO(0, nm1); */
 	}
-      PF_STOP(0);
     }
 
 
