@@ -23,6 +23,7 @@
 #define USE_ATOMIC_
 #define WAIT_TIME 66
 
+extern uint8_t id_to_core[];
 /* ------------------------------------------------------------------------------- */
 /* defines */
 /* ------------------------------------------------------------------------------- */
@@ -159,7 +160,7 @@ extern void ssmp_color_buf_free(ssmp_color_buf_t *cbuf);
 
 /* blocking receive from any of the participants according to the color function */
 extern inline void ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg);
-extern inline uint32_t ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_from);
+extern inline void ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg);
 
 /* ------------------------------------------------------------------------------- */
 /* barrier functions */
@@ -180,6 +181,7 @@ extern inline void wait_cycles(unsigned int cycles);
 extern inline void _mm_pause_rep(uint32_t num_reps);
 
 extern void set_cpu(int cpu);
+extern inline uint32_t get_cpu();
 
 typedef uint64_t ticks;
 extern inline ticks getticks(void);

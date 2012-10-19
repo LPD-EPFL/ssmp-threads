@@ -66,43 +66,44 @@ ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
     }
 }
 
-inline uint32_t
-ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg, uint32_t start_from)
+
+static uint32_t start_recv_from = 0; /* keeping from which core to start the recv from next */
+
+inline void
+ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 {
-  uint32_t from = start_from;
   uint32_t num_ues = cbuf->num_ues;
   volatile uint32_t** cbuf_state = cbuf->buf_state;
   volatile ssmp_msg_t** buf = cbuf->buf;
 
   while(1) {
-    for (; from < num_ues; from++)
+    for (; start_recv_from < num_ues; start_recv_from++)
       {
+
 #ifdef USE_ATOMIC
-	if(__sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD))
+	if(__sync_bool_compare_and_swap(cbuf_state[start_recv_from], BUF_MESSG, BUF_LOCKD))
 #else
-	PREFETCHW(buf[from]);
-	if (*cbuf_state[from] == BUF_MESSG)
+	PREFETCHW(buf[start_recv_from]);
+	if (*cbuf_state[start_recv_from] == BUF_MESSG)
 #endif
-	    {
-	      volatile ssmp_msg_t* tmpm = cbuf->buf[from];
-	      memcpy(msg, tmpm, 64);
-	      msg->sender = cbuf->from[from];
+	  {
+	    volatile ssmp_msg_t* tmpm = cbuf->buf[start_recv_from];
+	    memcpy(msg, tmpm, 64);
+	    msg->sender = cbuf->from[start_recv_from];
+	    PREFETCHW(ssmp_send_buf[msg->sender]);
 
-	      tmpm->state = BUF_EMPTY;
+	    tmpm->state = BUF_EMPTY;
 
-	      if (from < num_ues - 1)
-	      	{
-	      	  PREFETCHW(buf[from + 1]);
-	      	}
-	      else
-	      	{
-	      	  PREFETCHW(buf[0]);
-	      	}
+	    if (++start_recv_from == num_ues)
+	      {
+		start_recv_from = 0;
+	      }
+	    PREFETCHW(buf[start_recv_from]);
 
-	      return from;
-	    }
+	    return;
+	  }
       }
-    from = 0;
+    start_recv_from = 0;
   }
 }
 
