@@ -38,6 +38,7 @@ clflush(volatile void *p)
 typedef enum
   {
     STORE_ON_MODIFIED,
+    STORE_ON_MODIFIED_NO_SYNC,
     STORE_ON_SINGLE_READER,
     STORE_ON_SHARED,
     STORE_ON_OWNED_MINE,
@@ -51,6 +52,7 @@ typedef enum
 const char* moesi_type_des[] =
   {
     "STORE_ON_MODIFIED",
+    "STORE_ON_MODIFIED_NO_SYNC",
     "STORE_ON_SINGLE_READER",
     "STORE_ON_SHARED",
     "STORE_ON_OWNED_MINE",
@@ -285,7 +287,7 @@ int main(int argc, char **argv) {
 	{
 	  PRINT("Usage:: ./%s NUM_CORES REPETITIONS CORE1 CORE2 [CORE3] MOESI_EVENT [INVALIDATE]", argv[0]);
 	  PRINT("   where moesi event is one of the following:");
-	  for (ar = 0; ar < 9; ar++)
+	  for (ar = 0; ar < 10; ar++)
 	    {
 	      PRINT("      %d - %s", ar, moesi_type_des[ar]);
 	    }
@@ -476,7 +478,7 @@ int main(int argc, char **argv) {
   {								\
     uint32_t _i; ticks _sum = 0;				\
     uint32_t p = (num_vals < 200) ? num_vals : 200;		\
-    for (_i = 0; _i < p; _i++)				\
+    for (_i = 0; _i < p; _i++)					\
       {								\
 	printf("[%3d : %3lld] ", _i, (int64_t) det[_i]);	\
       }								\
@@ -516,6 +518,14 @@ int main(int argc, char **argv) {
 		_mm_sfence();
 		PFO(_ticks_det[reps]);
 		B1;			/* BARRIER 1 */
+		break;
+	      }
+	    case STORE_ON_MODIFIED_NO_SYNC:
+	      {
+		PFI;
+		cache_line->w0 = reps;
+		_mm_sfence();
+		PFO(_ticks_det[reps]);
 		break;
 	      }
 	    case STORE_ON_SINGLE_READER:
@@ -659,6 +669,14 @@ int main(int argc, char **argv) {
 	    case STORE_ON_MODIFIED:
 	      {
 		B1;			/* BARRIER 1 */
+		PFI;
+		cache_line->w0 = reps;
+		_mm_sfence();
+		PFO(_ticks_det[reps]);
+		break;
+	      }
+	    case STORE_ON_MODIFIED_NO_SYNC:
+	      {
 		PFI;
 		cache_line->w0 = reps;
 		_mm_sfence();
@@ -910,6 +928,19 @@ int main(int argc, char **argv) {
 	    else
 	      {
 		PRINT(" ** Results from Core 0 and 1 : store on modified");
+	      }
+	    break;
+	  }
+	case STORE_ON_MODIFIED_NO_SYNC:
+	  {
+	    if (inv_every_rep)
+	      {
+		PRINT(" ** Results do not make sense");
+	      }
+	    else
+	      {
+		PRINT(" ** Results from Core 0 and 1 : store on modified while another core is "
+		      "also trying to do the same");
 	      }
 	    break;
 	  }
