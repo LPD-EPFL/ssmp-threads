@@ -10,7 +10,7 @@ pfd_store_init(uint32_t num_entries)
   uint32_t i;
   for (i = 0; i < PFD_NUM_STORES; i++)
     {
-      pfd_store[i] = (ticks*) malloc(num_entries * sizeof(ticks));
+      pfd_store[i] = (ticks*) calloc(num_entries, sizeof(ticks));
       assert(pfd_store[i] != NULL);
       PREFETCHW(&pfd_store[i][0]);
     }
@@ -35,8 +35,7 @@ void
 print_abs_deviation(abs_deviation_t* abs_dev)
 {
   printf("\n ---- abs deviation stats:\n");
-  PRINT("    num : %llu", abs_dev->num_vals);
-  PRINT("    avg : %-10.1f\t\t\t\tdev : %.1f", abs_dev->avg, abs_dev->abs_dev);
+  PRINT("    avg : %-10.1f dev : %-10.1f num : %u", abs_dev->avg, abs_dev->abs_dev, abs_dev->num_vals);
   PRINT("    min : %-10.1f (element: %6llu)\t\tmax : %-10.1f (element: %6llu)", abs_dev->min_val, abs_dev->min_val_idx, abs_dev->max_val, abs_dev->max_val_idx);
   double v10p = 100 * 
     (1 - (abs_dev->num_vals - abs_dev->num_dev_10p) / (double) abs_dev->num_vals);

@@ -44,18 +44,21 @@ extern ticks _pfd_s[PFD_NUM_STORES];
 #define PFDO(store, entry)					\
   pfd_store[store][entry] =  getticks() - _pfd_s[store] - getticks_correction;
 
-#define PFDP(store, num_vals)					\
-  {								\
-    uint32_t _i;						\
-    uint32_t p = (num_vals < PFD_PRINT_MAX)			\
-      ? num_vals : PFD_PRINT_MAX;				\
-    for (_i = 0; _i < p; _i++)					\
-      {								\
-	printf("[%3d: %4lld] ", _i, (int64_t) pfd_store[store][_i]);	\
-      }								\
-    abs_deviation_t ad;						\
-    get_abs_deviation(pfd_store[store], num_vals, &ad);		\
-    print_abs_deviation(&ad);					\
+#define PFDP(store, num_vals)						\
+  {									\
+  uint32_t _i;								\
+  uint32_t p = (num_vals < PFD_PRINT_MAX)				\
+    ? num_vals : PFD_PRINT_MAX;						\
+  abs_deviation_t ad;							\
+  get_abs_deviation(pfd_store[store], num_vals, &ad);			\
+  if (!(ad.avg ==0 && ad.abs_dev ==0))					\
+    {									\
+      for (_i = 0; _i < p; _i++)					\
+	{								\
+	    printf("[%3d: %4lld] ", _i, (int64_t) pfd_store[store][_i]); \
+	}								\
+      print_abs_deviation(&ad);						\
+    }									\
   }
 
 #define PFDPN(store, num_vals, num_print)			\
