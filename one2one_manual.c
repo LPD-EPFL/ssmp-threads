@@ -21,6 +21,8 @@
 #include "ssmp.h"
 #include "measurements.h"
 #include "pfd.h"
+#include "papi.h"
+
 
 #define NO_MSG 0
 #define MSG 1
@@ -290,6 +292,33 @@ int main(int argc, char **argv) {
 
   srand(getticks() % 500009);
 
+  /* PAPI ------------------------------------------------------------------------------- */
+
+  int event_set = PAPI_NULL;
+
+  int ret = PAPI_library_init(PAPI_VER_CURRENT);
+  assert(ret == PAPI_VER_CURRENT);
+
+  ret = PAPI_create_eventset(&event_set);
+  assert(ret == PAPI_OK);
+
+  ret = PAPI_add_event(event_set, PAPI_L1_DCM);
+  assert(ret == PAPI_OK);
+
+  ret = PAPI_add_event(event_set, PAPI_L1_DCH);
+  assert(ret == PAPI_OK);
+
+  ret = PAPI_add_event(event_set, PAPI_L1_DCA);
+  assert(ret == PAPI_OK);
+
+
+  ret = PAPI_reset(event_set);
+  assert(ret == PAPI_OK);
+
+  uint64_t l1_dc_s[3] = {0, 0, 0}, l1_dc_e[3];
+
+  PAPI_start(event_set);
+
   ssmp_barrier_wait(0);
 
   /* /\********************************************************************************* */
@@ -307,31 +336,50 @@ int main(int argc, char **argv) {
 
       for (nm1 = 0; nm1 < nm; nm1++)
 	{
-	  ssmp_barrier_wait(0);
-	  barrier_wait(finc);
+	  /* ssmp_barrier_wait(0); */
+	  /* barrier_wait(finc); */
+
+
+	  PREFETCHW(&event_set);
+	  PREFETCHW(l1_dc_e);
+	  
+	  wait_cycles(100000);
+
+	  PREFETCHW(&event_set);
+	  PREFETCHW(l1_dc_e);
 
 	  uint32_t wted = 0;
+	  //	  PAPI_read(event_set, l1_dc_s);
 	  PFDI(0);
+
+	  PAPI_reset(event_set);
 	  PREFETCHW(local);
 	  while (local->state != MSG)
 	    {
-	      if (wted++)
-	  	{
-	  	  PREFETCHW(local);
-	  	  //		  wait_cycles(wted * 6);
-	  	  //		  PFDO(1, wtimes_rcv - 1);
-	  	}
-	      wtimes_rcv++;
+	      /* if (wted++) */
+	      /* 	{ */
+	      wted++;
+	      PRINT("why??");
+	      PREFETCHW(local);
+	      //		  wait_cycles(wted * 6);
+	      //		  PFDO(1, wtimes_rcv - 1);
+	      /* } */
+	      //	      wtimes_rcv++;
 	      //	      PFDI(1);
 	    }
+
+
 	  /* if (wted) */
 	  /*   { */
 	  /*     PFDO(1, wtimes_rcv - 1); */
 	  /*   } */
 	  memcpy(msgp, local, 64);
 	  local->state = NO_MSG;
-	  PFDO(0, nm1);
+	  PAPI_read(event_set, l1_dc_e);
 
+	  PFDO(0, nm1);
+	  PRINT("(%3d) M: %-6llu, H: %-6llu, A: %llu",
+		nm1, l1_dc_e[0] - l1_dc_s[0], l1_dc_e[1] - l1_dc_s[1], l1_dc_e[2] - l1_dc_s[2]);
 
 	  wted_det[nm1] = wted;
 	  //	  printf("[%2d : %4d] ", nm1, wted);
@@ -341,8 +389,8 @@ int main(int argc, char **argv) {
 	  //	  wait_cycles(20000);
 	  /* for (nm1 = 0; nm1 < nm; nm1++) */
 	  /* 	{ */
-	  ssmp_barrier_wait(3);
-	  barrier_wait(finc + 16);
+	  /* ssmp_barrier_wait(3); */
+	  /* barrier_wait(finc + 16); */
 	  /* **************************************** send */
 	  wted = 0;
 	  PFDI(1);
@@ -361,7 +409,7 @@ int main(int argc, char **argv) {
 	  memcpy(remote, msgp, 64);
 	  PFDO(1, nm1);
 
-	  barrier_wait(finc + 32);
+	  /* barrier_wait(finc + 32); */
 
 	  /* ssmp_barrier_wait(4); */
 	}
@@ -378,40 +426,50 @@ int main(int argc, char **argv) {
     {
       P("app core!");
 	
+      uint32_t* msgp_state = &msgp->state;
+
       uint32_t wc = atoi(argv[5]);
       for (nm1 = 0; nm1 < nm; nm1++)
 	{
-	  ssmp_barrier_wait(0);
-	  barrier_wait(finc);
+	  /* ssmp_barrier_wait(0); */
+	  /* barrier_wait(finc); */
 
 	  /* wait_cycles(wc); */
 
 	  uint32_t wted = 0;
 	  PFDI(1);
+
+	  //	  PAPI_read(event_set, l1_dc_s);
+	  PAPI_reset(event_set);
 	  PREFETCHW(remote);
 	  while (remote->state != NO_MSG)
 	    {
-	      if (wted++)
-	      	{
-	      	  PREFETCHW(remote);
-	      	  _mm_pause();
-	      	}
-	      wtimes_snd++;
+	      PRINT("why??");
+	      /* if (wted++) */
+	      /* 	{ */
+	      /* 	  PREFETCHW(remote); */
+	      /* 	  _mm_pause(); */
+	      /* 	} */
+	      /* wtimes_snd++; */
 	    }
 
 	  msgp->state = MSG;
 	  memcpy(remote, msgp, 64);
+	  PAPI_read(event_set, l1_dc_e);
+
 	  PFDO(1, nm1);
+	  PRINT("\t\t\t\t\t\t\t\t(%3d) M: %-6llu, H: %-6llu, A: %llu",
+		nm1, l1_dc_e[0] - l1_dc_s[0], l1_dc_e[1] - l1_dc_s[1], l1_dc_e[2] - l1_dc_s[2]);
 	  /* } */
 
 
 	  //	  wait_cycles(rand() % (1024 * 1024));
-	  wait_cycles(wc);
+	  /* wait_cycles(wc); */
 	  /* for (nm1 = 0; nm1 < nm; nm1++) */
 	  /* 	{ */
 	  
-	  ssmp_barrier_wait(3);
-	  barrier_wait(finc + 16);
+	  /* ssmp_barrier_wait(3); */
+	  /* barrier_wait(finc + 16); */
 
 	  /* **************************************** recv */
 
@@ -420,22 +478,21 @@ int main(int argc, char **argv) {
 	  PREFETCHW(local);
 	  while (local->state != MSG)
 	    {
-	      if (wted++)
-	  	{
-	  	  PREFETCHW(local);
-	  	  wait_cycles(wted * 6);
-	  	}
 	      wtimes_rcv++;
+	      wted++;
+	      PREFETCHW(local);
 	    }
 	  memcpy(msgp, local, 64);
 	  local->state = NO_MSG;
 	  PFDO(0, nm1);
 
 	  wted_det[nm1] = wted;
-	  barrier_wait(finc + 32);
+	  /* barrier_wait(finc + 32); */
 	  /* ssmp_barrier_wait(4); */
 	}
 
+
+      PAPI_stop(event_set, l1_dc_s);
       barrier_wait(finc + 48);
       PRINT(" ~~ waited before recv");
       for (nm1 = 0; nm1 < nm; nm1++)
@@ -447,8 +504,8 @@ int main(int argc, char **argv) {
     }
 
   ssmp_barrier_wait(3);
-  PRINT("recv = %6llu : avg recv = %5.1f || snd = %6llu : avg snd = %.1f", 
-	wtimes_rcv, wtimes_rcv / (double) nm,  wtimes_snd, wtimes_snd / (double) nm);
+  /* PRINT("recv = %6llu : avg recv = %5.1f || snd = %6llu : avg snd = %.1f",  */
+  /* 	wtimes_rcv, wtimes_rcv / (double) nm,  wtimes_snd, wtimes_snd / (double) nm); */
   for (nm1 = 0; nm1 < num_procs; nm1++)
     {
       if (ID == nm1)

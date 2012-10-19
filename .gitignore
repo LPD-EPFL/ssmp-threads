@@ -16,12 +16,14 @@
 /memstresh
 /memstreshmp
 /moesi
+/moesi_all_sockets.sh
 /moesi_th.c
 /mpmap.out
 /mpmap.out.cas.numa
 /mpmap.out.cas.numa.15Jul
 /mpmap.out.cas.numa.17Jul
 /mpmap.out.new
+/node_to_node_cose
 /numactl.before.mem.modules
 /o
 /one2one.S

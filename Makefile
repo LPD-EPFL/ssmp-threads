@@ -1,5 +1,6 @@
 PLATFORM_NUMA=1
 MEASUREMENTS=1
+PERF_COUNTERS=1
 
 ifeq ($(P),0) #give P=0 to compile with debug info
 DEBUG_CFLAGS=-ggdb -Wall -g  -fno-inline #-pg
@@ -13,6 +14,12 @@ ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
 PERF_CLFAGS += -lnuma
 VER_FLAGS = -DPLATFORM_NUMA
 endif 
+
+ifeq ($(PERF_COUNTERS),1) #give PERF_COUNTERS=1 for compiling with the papi library included
+PERF_CLFAGS += -lnuma
+VER_FLAGS = -DPLATFORM_NUMA
+endif 
+
 
 
 default: main
@@ -64,7 +71,7 @@ cas_stresh.o:	cas_stresh.c ssmp.c
 		gcc $(VER_FLAGS) -D_GNU_SOURCE -c cas_stresh.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 one2one_manual: libssmp.a one2one_manual.o common.h
-	gcc $(VER_FLAGS) -o one2one_manual one2one_manual.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+	gcc $(VER_FLAGS) -o one2one_manual one2one_manual.o libssmp.a libpapi.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
 
 one2one_manual.o:	one2one_manual.c ssmp.c
 		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one_manual.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
