@@ -44,24 +44,26 @@ ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
   uint32_t num_ues = cbuf->num_ues;
   volatile uint32_t** cbuf_state = cbuf->buf_state;
   volatile ssmp_msg_t** buf = cbuf->buf;
+
   while(1)
     {
       for (from = 0; from < num_ues; from++) 
 	{
-
+	  if (
 #ifdef USE_ATOMIC
-	  if(__sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD))
+	      __sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD)
 #else
-	    if (*cbuf_state[from] == BUF_MESSG)
+	      *cbuf_state[from] == BUF_MESSG
+	      )
+	    {
 #endif
-	      {
-		volatile ssmp_msg_t* tmpm = cbuf->buf[from];
-		memcpy(msg, tmpm, SSMP_CACHE_LINE_SIZE);
-		msg->sender = cbuf->from[from];
+	      volatile ssmp_msg_t* tmpm = cbuf->buf[from];
+	      memcpy(msg, tmpm, SSMP_CACHE_LINE_SIZE);
+	      msg->sender = cbuf->from[from];
 
-		tmpm->state = BUF_EMPTY;
-		return;
-	      }
+	      tmpm->state = BUF_EMPTY;
+	      return;
+	    }
 	}
     }
 }

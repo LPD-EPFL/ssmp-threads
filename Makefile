@@ -1,6 +1,6 @@
 PLATFORM_NUMA=1
-MEASUREMENTS=1
-PERF_COUNTERS=1
+MEASUREMENTS=0
+PERF_COUNTERS=0
 
 ifeq ($(P),0) #give P=0 to compile with debug info
 DEBUG_CFLAGS=-ggdb -Wall -g  -fno-inline #-pg
@@ -16,7 +16,7 @@ VER_FLAGS = -DPLATFORM_NUMA
 endif 
 
 ifeq ($(PERF_COUNTERS),1) #give PERF_COUNTERS=1 for compiling with the papi library included
-PERF_CLFAGS += -lnuma
+PERF_CLFAGS += -lpapi
 VER_FLAGS = -DPLATFORM_NUMA
 endif 
 
