@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -16,6 +17,8 @@
 #ifdef PLATFORM_NUMA
 #include <numa.h>
 #endif /* PLATFORM_NUMA */
+
+#include "measurements.h"
 
 /* ------------------------------------------------------------------------------- */
 /* settings */
@@ -182,13 +185,43 @@ extern inline void wait_cycles(uint64_t cycles);
 extern inline void _mm_pause_rep(uint32_t num_reps);
 extern inline uint32_t get_num_hops(uint32_t core1, uint32_t core2);
 
-
-
 extern void set_cpu(int cpu);
 extern inline uint32_t get_cpu();
 
 typedef uint64_t ticks;
 extern inline ticks getticks(void);
+extern ticks getticks_correction;
+extern ticks getticks_correction_calc();
+
+/// Round up to next higher power of 2 (return x if it's already a power
+/// of 2) for 32-bit numbers
+extern inline uint32_t pow2roundup (uint32_t x);
+
+    #define my_random xorshf96
+
+/* 
+ * Returns a pseudo-random value in [1;range).
+ * Depending on the symbolic constant RAND_MAX>=32767 defined in stdlib.h,
+ * the granularity of rand() could be lower-bounded by the 32767^th which might 
+ * be too high for given values of range and initial.
+ */
+
+//Marsaglia's xorshf generator
+static inline unsigned long
+xorshf96(unsigned long* x, unsigned long* y, unsigned long* z) {          //period 2^96-1
+  unsigned long t;
+  (*x) ^= (*x) << 16;
+  (*x) ^= (*x) >> 5;
+  (*x) ^= (*x) << 1;
+
+  t = *x;
+  (*x) = *y;
+  (*y) = *z;
+  (*z) = t ^ (*x) ^ (*y);
+
+  return *z;
+}
+
 
 
 extern inline int ssmp_id();
