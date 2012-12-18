@@ -7,7 +7,7 @@ DEBUG_CFLAGS=-ggdb -Wall -g  -fno-inline #-pg
 PERF_CLFAGS= 
 else
 DEBUG_CFLAGS=-Wall
-PERF_CLFAGS= -O2 #-O0 -g
+PERF_CLFAGS= -O3 #-O0 -g
 endif
 
 ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
@@ -22,13 +22,19 @@ endif
 
 
 
-default: main
+default: bank
 
 main:	libssmp.a main.o common.h
 	gcc $(VER_FLAGS) -o main main.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 main.o:	main.c
 	gcc $(VER_FLAGS) -D_GNU_SOURCE -c main.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+bank:	libssmp.a bank.o common.h
+	gcc $(VER_FLAGS) -o bank bank.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+bank.o:	bank.c
+	gcc $(VER_FLAGS) -D_GNU_SOURCE -c bank.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 ssmp.o: ssmp.c
 	gcc $(VER_FLAGS) -D_GNU_SOURCE -c ssmp.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
@@ -43,6 +49,7 @@ ssmp_broadcast.o: ssmp_broadcast.c
 	gcc $(VER_FLAGS) -D_GNU_SOURCE -c ssmp_broadcast.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 ifeq ($(MEASUREMENTS),1)
+PERF_CLFAGS += -DDO_TIMINGS
 MEASUREMENTS_FILES += measurements.o pfd.o
 endif
 
