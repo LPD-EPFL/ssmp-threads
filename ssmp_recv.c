@@ -33,7 +33,7 @@ void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg)
     }
 #endif
   
-  memcpy(msg, tmpm, SSMP_CACHE_LINE_SIZE);
+  memcpy((void*) msg, (const void*) tmpm, SSMP_CACHE_LINE_SIZE);
   tmpm->state = BUF_EMPTY;
 }
 
@@ -43,7 +43,6 @@ ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
   uint32_t from;
   uint32_t num_ues = cbuf->num_ues;
   volatile uint32_t** cbuf_state = cbuf->buf_state;
-  volatile ssmp_msg_t** buf = cbuf->buf;
 
   while(1)
     {
@@ -54,11 +53,11 @@ ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 	      __sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD)
 #else
 	      *cbuf_state[from] == BUF_MESSG
+#endif
 	      )
 	    {
-#endif
 	      volatile ssmp_msg_t* tmpm = cbuf->buf[from];
-	      memcpy(msg, tmpm, SSMP_CACHE_LINE_SIZE);
+	      memcpy((void*) msg, (const void*) tmpm, SSMP_CACHE_LINE_SIZE);
 	      msg->sender = cbuf->from[from];
 
 	      tmpm->state = BUF_EMPTY;
@@ -90,7 +89,7 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 #endif
 	  {
 	    volatile ssmp_msg_t* tmpm = cbuf->buf[start_recv_from];
-	    memcpy(msg, tmpm, 64);
+	    memcpy((void*) msg, (const void*) tmpm, SSMP_CACHE_LINE_SIZE);
 	    msg->sender = cbuf->from[start_recv_from];
 
 	    tmpm->state = BUF_EMPTY;

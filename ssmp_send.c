@@ -7,7 +7,6 @@ extern int ssmp_num_ues_;
 extern int ssmp_id_;
 extern int last_recv_from;
 extern ssmp_barrier_t *ssmp_barrier;
-static volatile ssmp_msg_t *tmpm;
 
 /* ------------------------------------------------------------------------------- */
 /* sending functions : default is blocking */
@@ -27,12 +26,13 @@ void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg)
   PREFETCHW(tmpm);
   while (tmpm->state != BUF_EMPTY)
     {
+      _mm_pause();
       PREFETCHW(tmpm);
     }
 #endif
 
   msg->state = BUF_MESSG;
-  memcpy(tmpm, msg, SSMP_CACHE_LINE_SIZE);
+  memcpy((void*) tmpm, (const void*) msg, SSMP_CACHE_LINE_SIZE);
 }
 
 inline 
