@@ -192,59 +192,52 @@ int main(int argc, char **argv) {
 
     while(1) 
       {
-	/* ssmp_barrier_wait(0); */
-
-	PFDI(0);
+	/* PFDI(0); */
+	PF_START(0);
 	ssmp_recv_from(from, msgp);
-	PFDO(0, idx);
-
-
-	/* ssmp_barrier_wait(2); */
-
+	PF_STOP(0);
+	PF_START(1);
+	/* PFDO(0, idx); */
 	/* PFDI(1); */
-	/* ssmp_send(from, msgp); */
+	ssmp_send(from, msgp);
 	/* PFDO(1, idx); */
+	PF_STOP(1);
 
-	if (msgp->w0 == out) {
-	  PRINT("done..");
-	  break;
-	}
+	if (msgp->w0 == out) 
+	  {
+	    PRINT("done..");
+	    break;
+	  }
 
 	if (msgp->w0 != expected++)
 	  {
 	    PRINT(" *** expected %5d, got %5d", expected, msgp->w0);
 	  }
-
-
 	idx++;
       }
   }
   else 
     {
       P("app core!");
-      unsigned int to = ID-1;
+      uint32_t to = ID-1;
       long long int nm1 = nm;
 
       for (nm1 = 0; nm1 < nm; nm1++)
 	{
-	  /* ssmp_barrier_wait(0); */
-
 	  msgp->w0 = nm1;
-	  PFDI(1);
+	  PF_START(1);
+	  /* PFDI(1); */
 	  ssmp_send(to, msgp);
-	  PFDO(1, nm1);
-
-
-	  /* ssmp_barrier_wait(2); */
-
+	  /* PFDO(1, nm1); */
+	  PF_STOP(1);
+	  PF_START(0);
 	  /* PFDI(0); */
-	  /* ssmp_recv_from(to, msgp); */
+	  ssmp_recv_from(to, msgp);
+	  PF_STOP(0);
 	  /* PFDO(0, nm1); */
 	}
     }
 
-
-  extern uint64_t waited, waited_send;
 
   uint32_t c;
   for (c = 0; c < ssmp_num_ues(); c++)
@@ -255,8 +248,8 @@ int main(int argc, char **argv) {
 	  /* 	waited, waited / (double) nm, */
 	  /* 	waited_send, waited_send / (double) nm); */
 	  PF_PRINT;
-	  PFDPN(0, nm, wc);
-	  PFDPN(1, nm, wc);
+	  /* PFDPN(0, nm, wc); */
+	  /* PFDPN(1, nm, wc); */
 	}
       ssmp_barrier_wait(0);
     }

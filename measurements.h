@@ -12,8 +12,10 @@ extern "C" {
 #  include "ssmp.h"
 #endif
 
+  typedef uint64_t ticks;
+
 #define PLATFORM_MCORE
-#define DO_TIMINGS
+/* #define DO_TIMINGS */
 
 #ifndef REF_SPEED_GHZ
 #  if defined(PLATFORM_MCORE)
@@ -152,9 +154,6 @@ do {\
   extern ticks total_sum_ticks[ENTRY_TIMES_SIZE];
   extern long long total_samples[ENTRY_TIMES_SIZE];
   extern const char *measurement_msgs[ENTRY_TIMES_SIZE];
-  extern ticks getticks_correction;
-  extern ticks getticks_correction_calc();
-
 #define MEASUREREMENT_CORRECTION getticks_correction_calc();
 #define SET_PROF_MSG(msg) SET_PROF_MSG_POS(0, msg) 
 #define ENTRY_TIME ENTRY_TIME_POS(0)
