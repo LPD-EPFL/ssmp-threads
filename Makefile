@@ -1,5 +1,5 @@
 PLATFORM_NUMA=1
-MEASUREMENTS=0
+MEASUREMENTS=1
 PERF_COUNTERS=0
 
 ifeq ($(P),0) #give P=0 to compile with debug info
@@ -22,7 +22,7 @@ endif
 
 
 
-default: bank
+default: one2one main
 
 main:	libssmp.a main.o common.h
 	gcc $(VER_FLAGS) -o main main.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)

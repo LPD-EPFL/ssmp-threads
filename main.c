@@ -24,7 +24,8 @@
 #include "pfd.h"
 
 
-#define ROUNDTRIP
+#define ROUNDTRIP__
+#define DEBUG_
 
 uint32_t nm = 1000000;
 uint8_t dsl_seq[64];
@@ -167,32 +168,25 @@ main(int argc, char **argv)
 
   if (color_dsl(ID)) 
     {
-      /* PRINT("dsl core"); */
-      PF_START(3);
       while(1) 
 	{
 	  /* PF_START(0); */
 	  ssmp_recv_color_start(cbuf, msg);
 	  /* PF_STOP(0); */
 	  //	  PF_START(1);
-	  /* PFDI(0); */
 #if defined(ROUNDTRIP)
 	  ssmp_send(msg->sender, msg);
 #endif  /* ROUNDTRIP */
-	  /* PFDO(0, cur++); */
-
 	  //	  PF_STOP(1);
 	  
 
 	  if (msg->w0 < lim_zeros) {
 	    if (--num_zeros == 0)
 	      {
-		/* P("done .."); */
 		break;
 	      }
 	  }
 	}
-      PF_STOP(3);
     }
   else 
     {
@@ -205,15 +199,11 @@ main(int argc, char **argv)
       t_start = getticks();
       while (nm1--)
 	{
-	  /* PF_START(2); */
 	  msg->w0 = nm1;
 	  PF_START(1);
 	  ssmp_send(to, msg);
 	  PF_STOP(1);
 	
-	  /* uint32_t hops = get_num_hops(get_cpu(), to); */
-	  /* wait_cycles(wcycles[hops]); */
-
 	  /* PF_START(0); */
 #if defined(ROUNDTRIP)
 	  ssmp_recv_from(to, msg);
@@ -225,9 +215,6 @@ main(int argc, char **argv)
 	    {
 	      to_idx = 0;
 	    }
-	  /* PREFETCHW(ssmp_send_buf[dsl_seq[to_idx]]); */
-
-	  /* PF_STOP(2); */
 
 	  if (msg->w0 != nm1) 
 	    {
@@ -261,7 +248,9 @@ main(int argc, char **argv)
 	      double dur = t_dur / ticks_per_sec;
 	      double througput = nm / dur;
 
+#if defined(DEBUG)
 	      PRINT("Completed in %10f secs | Througput: %f", dur, througput);
+#endif
 	      memcpy(msg, &througput, sizeof(double));
 	      ssmp_send(0, msg);
 	    }
