@@ -29,7 +29,7 @@ prints_ticks_stats(int start, int end)
   
   if (have_output)
     {
-      printf("(PROFILING) >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+      printf("(PROFILING) >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
     }
   for (i = start; i < end; i++) {
     if (total_samples[i] && total_sum_ticks[i]) {
@@ -52,11 +52,11 @@ prints_ticks_stats(int start, int end)
 	     (double) total_sum_ticks[i]/total_samples[i]);
     }
   }
-  if (have_output)
-    {
-      printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< (PROFILING)\n");
-      fflush(stdout);
-    }
+  /* if (have_output) */
+  /*   { */
+  /*     printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< (PROFILING)\n"); */
+  /*     fflush(stdout); */
+  /*   } */
 }
 
 #endif

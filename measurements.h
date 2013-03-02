@@ -15,7 +15,6 @@ extern "C" {
   /* typedef uint64_t ticks; */
 
 #define PLATFORM_MCORE
-#define DO_TIMINGS
 
 #ifndef REF_SPEED_GHZ
 #  if defined(PLATFORM_MCORE)

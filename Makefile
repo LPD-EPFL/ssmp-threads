@@ -1,6 +1,32 @@
 PLATFORM_NUMA=1
-MEASUREMENTS=0
+MEASUREMENTS=1
 PERF_COUNTERS=0
+
+UNAME := $(shell uname -n)
+
+ifeq ($(UNAME), lpd48core)
+PLATFORM=OPTERON
+CC=gcc
+PLATFORM_NUMA=1
+endif
+
+ifeq ($(UNAME), diassrv8)
+PLATFORM=XEON
+CC=gcc
+PLATFORM_NUMA=1
+endif
+
+ifeq ($(UNAME), maglite)
+PLATFORM=NIAGARA
+CC=/opt/csw/bin/gcc -m64 -mcpu=v9 -mtune=v9
+endif
+
+ifeq ($(UNAME), parsasrv1.epfl.ch)
+PLATFORM=TILERA
+CC=tile-gcc
+PERF_CLFAGS= -ltmc
+LINK=-ltmc
+endif
 
 ifeq ($(P),0) #give P=0 to compile with debug info
 DEBUG_CFLAGS=-ggdb -Wall -g  -fno-inline #-pg
@@ -20,9 +46,9 @@ PERF_CLFAGS += -lpapi
 VER_FLAGS = -DPLATFORM_NUMA
 endif 
 
+VER_FLAGS+=-D$(PLATFORM)
 
-
-default: bank
+default: one2one main
 
 main:	libssmp.a main.o common.h
 	gcc $(VER_FLAGS) -o main main.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
