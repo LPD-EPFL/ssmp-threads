@@ -65,8 +65,8 @@ libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h $(MEASUREMENTS
 	ar -r libssmp.a ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o $(MEASUREMENTS_FILES)
 	rm -f *.o	
 
-one2one: libssmp.a one2one.o common.h
-	gcc $(VER_FLAGS) -o one2one one2one.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+one2one: libssmp.a one2one.o common.h measurements.o pfd.o
+	gcc $(VER_FLAGS) -o one2one one2one.o measurements.o pfd.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 one2one.o:	one2one.c ssmp.c
 		gcc $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)

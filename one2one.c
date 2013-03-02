@@ -27,7 +27,7 @@
 int num_procs = 2;
 long long int nm = 100000000;
 ticks getticks_correction;
-int ID, on;
+uint8_t ID, on;
 
 
 static inline void
@@ -160,8 +160,8 @@ int main(int argc, char **argv) {
   msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
   assert(msgp != NULL);
   
-  PF_MSG(1, "receiving");
-  PF_MSG(2, "sending");
+  PF_MSG(0, "receiving");
+  PF_MSG(1, "sending");
 
   uint32_t f;
   for (f = 0; f < 16; f++) finc[f] = 0;

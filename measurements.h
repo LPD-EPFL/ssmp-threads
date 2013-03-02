@@ -12,10 +12,10 @@ extern "C" {
 #  include "ssmp.h"
 #endif
 
-  typedef uint64_t ticks;
+  /* typedef uint64_t ticks; */
 
 #define PLATFORM_MCORE
-/* #define DO_TIMINGS */
+#define DO_TIMINGS
 
 #ifndef REF_SPEED_GHZ
 #  if defined(PLATFORM_MCORE)
@@ -124,7 +124,7 @@ do {\
   
 #include <stdint.h>
 #ifndef SSMP
-  typedef uint64_t ticks;
+  typedef uint64_ ticks;
 
 #if defined(__i386__)
   EXINLINED ticks getticks(void) {
@@ -149,9 +149,9 @@ do {\
         M_FALSE, M_TRUE
     };
 
-  extern ticks entry_time[ENTRY_TIMES_SIZE];
+  extern uint64_t entry_time[ENTRY_TIMES_SIZE];
   extern enum timings_bool_t entry_time_valid[ENTRY_TIMES_SIZE];
-  extern ticks total_sum_ticks[ENTRY_TIMES_SIZE];
+  extern uint64_t total_sum_ticks[ENTRY_TIMES_SIZE];
   extern long long total_samples[ENTRY_TIMES_SIZE];
   extern const char *measurement_msgs[ENTRY_TIMES_SIZE];
 #define MEASUREREMENT_CORRECTION getticks_correction_calc();
