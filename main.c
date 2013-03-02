@@ -28,13 +28,19 @@
 #define DEBUG_
 
 uint32_t nm = 1000000;
-uint8_t dsl_seq[64];
+uint8_t dsl_seq[80];
 uint8_t num_procs = 2;
 uint8_t ID;
 uint8_t num_dsl = 0;
 uint8_t num_app = 0;
 uint8_t dsl_per_core = 2;
 uint32_t delay_after = 0;
+
+int 
+color_all(int id)
+{
+  return 1;
+}
 
 int 
 color_dsl(int id)
@@ -118,6 +124,8 @@ main(int argc, char **argv)
 
   ssmp_barrier_init(2, 0, color_dsl);
   ssmp_barrier_init(1, 0, color_app1);
+  ssmp_barrier_init(0, 0, color_all);
+  ssmp_barrier_init(5, 0, color_all);
 
   uint8_t rank;
   for (rank = 1; rank < num_procs; rank++) 
@@ -156,7 +164,7 @@ main(int argc, char **argv)
   uint32_t num_zeros = num_app;
   uint32_t lim_zeros = num_dsl;
 
-  PFDINIT((num_app/num_dsl)*nm + 96);
+  /* PFDINIT((num_app/num_dsl)*nm + 96); */
 
   ticks t_start = 0, t_end = 0;
 
@@ -182,6 +190,7 @@ main(int argc, char **argv)
 	  if (msg->w0 < lim_zeros) {
 	    if (--num_zeros == 0)
 	      {
+		PRINT("done");
 		break;
 	      }
 	  }
@@ -254,6 +263,7 @@ main(int argc, char **argv)
 #if defined(DEBUG)
 	      PRINT("Completed in %10f secs | Througput: %f", dur, througput);
 #endif
+
 	      memcpy(msg, &througput, sizeof(double));
 	      ssmp_send(0, msg);
 	    }
@@ -265,10 +275,10 @@ main(int argc, char **argv)
 	  /* PRINT("recved th from %02d : %f", c, througput); */
 	  total_throughput += througput;
 	}
-      ssmp_barrier_wait(0);
+      ssmp_barrier_wait(5);
     }
 
-  ssmp_barrier_wait(5);
+  ssmp_barrier_wait(0);
   if (ssmp_id() == 0)
     {
       PRINT("Total throughput: %f", total_throughput);

@@ -4,7 +4,7 @@
 
 
 #if defined(OPTERON)
-uint8_t id_to_core[] =
+const uint8_t id_to_core[] =
   {
     0, 1, 2, 3, 4, 5,
     6, 7, 8, 9, 10, 11,
@@ -28,27 +28,38 @@ uint8_t id_to_core[] =
     21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 
     31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
   };
+
+const uint8_t id_to_node[] =
+  {
+    4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 
+    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 
+    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 
+  };
 #endif
 
-const uint8_t node_to_node_hops[8][8] =
-  {
-  /* 0  1  2  3  4  5  6  7           */
-    {0, 1, 2, 3, 2, 3, 2, 3},	/* 0 */
-    {1, 0, 3, 2, 3, 2, 3, 2},	/* 1 */
-    {2, 3, 0, 1, 2, 3, 2, 3},	/* 2 */
-    {3, 2, 1, 0, 3, 2, 3, 2},	/* 3 */
-    {2, 3, 2, 3, 0, 1, 2, 3},	/* 4 */
-    {3, 2, 3, 2, 1, 0, 3, 2},	/* 5 */
-    {2, 3, 2, 3, 2, 3, 0, 1},	/* 6 */
-    {3, 2, 3, 2, 3, 2, 1, 0},	/* 7 */
-  };
-
+/* const uint8_t node_to_node_hops[8][8] = */
+/*   { */
+/*     /\* 0  1  2  3  4  5  6  7           *\/ */
+/*     {0, 1, 2, 3, 2, 3, 2, 3},	/\* 0 *\/ */
+/*     {1, 0, 3, 2, 3, 2, 3, 2},	/\* 1 *\/ */
+/*     {2, 3, 0, 1, 2, 3, 2, 3},	/\* 2 *\/ */
+/*     {3, 2, 1, 0, 3, 2, 3, 2},	/\* 3 *\/ */
+/*     {2, 3, 2, 3, 0, 1, 2, 3},	/\* 4 *\/ */
+/*     {3, 2, 3, 2, 1, 0, 3, 2},	/\* 5 *\/ */
+/*     {2, 3, 2, 3, 2, 3, 0, 1},	/\* 6 *\/ */
+/*     {3, 2, 3, 2, 3, 2, 1, 0},	/\* 7 *\/ */
+/*   }; */
 
 /* ------------------------------------------------------------------------------- */
 /* library variables */
 /* ------------------------------------------------------------------------------- */
 
-static ssmp_msg_t *ssmp_mem;
+  static ssmp_msg_t *ssmp_mem;
 volatile ssmp_msg_t **ssmp_recv_buf;
 volatile ssmp_msg_t **ssmp_send_buf;
 static ssmp_chunk_t *ssmp_chunk_mem;
@@ -519,15 +530,16 @@ _mm_pause_rep(uint32_t num_reps)
     }
 }
 
-inline uint32_t 
-get_num_hops(uint32_t core1, uint32_t core2)
-{
-  uint32_t hops = node_to_node_hops[core1 / 6][core2 / 6];
-  //  PRINT("%2d is %d hop", core2, hops);
-  return hops;
-}
+/* inline uint32_t  */
+/* get_num_hops(uint32_t core1, uint32_t core2) */
+/* { */
+/*   uint32_t hops = node_to_node_hops[core1 / 6][core2 / 6]; */
+/*   //  PRINT("%2d is %d hop", core2, hops); */
+/*   return hops; */
+/* } */
 
-void set_cpu(int cpu) {
+void set_cpu(int cpu) 
+{
   ssmp_my_core = cpu;
 
   cpu_set_t mask;
@@ -539,12 +551,10 @@ void set_cpu(int cpu) {
     exit(3);
   }
 
-#ifdef PLATFORM_NUMA
+#ifdef OPTERON
   uint32_t numa_node = cpu/6;
-  /* SP("\t\t\tcore %02d -> tnuma_set_preferred(%d)", cpu, numa_node); */
   numa_set_preferred(numa_node);  
-#endif /* PLATFORM_NUMA */
-  
+#endif
 }
 
 inline uint32_t
@@ -604,7 +614,11 @@ pow2roundup (uint32_t x)
   return x+1;
 }
 
-
+inline uint32_t
+ssmp_cores_on_same_socket(uint32_t core1, uint32_t core2)
+{
+  return (id_to_node[id_to_core[core1]] == id_to_node[id_to_core[core2]]);
+}
 inline int ssmp_id() 
 {
   return ssmp_id_;

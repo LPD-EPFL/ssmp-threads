@@ -60,8 +60,14 @@ barrier_wait(uint32_t* barrier)
 int
 main(int argc, char **argv) 
 {
+  on = id_to_core[0];
   if (argc > 3) 
     {
+      uint32_t c;
+      for (c = 3; c < argc; c++)
+	{
+	  id_to_core[c - 3] = atoi(argv[c]);
+	}
       on = atoi(argv[3 + ID]);
       P("placed on core %d", on);
     }
@@ -100,7 +106,7 @@ main(int argc, char **argv)
 
  fork_done:
   ID = rank;
-  uint32_t on = ID;
+  uint32_t on = id_to_core[ID];
 
   if (argc > 3)
     {
@@ -113,8 +119,10 @@ main(int argc, char **argv)
     }
   else
     {
-      set_cpu(ID);
+      set_cpu(on);
     }
+  id_to_core[ID] = on;
+
   ssmp_mem_init(ID, num_procs);
   /* P("Initialized child %u", rank); */
 

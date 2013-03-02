@@ -9,7 +9,7 @@ then
     other_cores="1 6 12 18";
 else
     base_core=1;
-    other_cores="10 40 80"
+    other_cores="2 11 31"
 fi
 
 run_avg=$(find -name "run_avg.sh");

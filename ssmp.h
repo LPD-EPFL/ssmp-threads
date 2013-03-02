@@ -223,7 +223,7 @@ xorshf96(unsigned long* x, unsigned long* y, unsigned long* z) {          //peri
 }
 
 
-
+extern inline uint32_t ssmp_cores_on_same_socket(uint32_t core1, uint32_t core2);
 extern inline int ssmp_id();
 extern inline int ssmp_num_ues();
 
