@@ -7,7 +7,8 @@ if [ $(uname -n) = "lpd48core" ];
 then
     base_core=0;
     other_cores="1 6 12 18";
-else
+elif [ $(uname -n) = "diassrv8" ];
+then
     base_core=1;
     other_cores="2 11 31"
 fi
