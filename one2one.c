@@ -18,8 +18,6 @@
 
 #include "common.h"
 #include "ssmp.h"
-#include "ssmp_send.h"
-#include "ssmp_recv.h"
 
 #include "measurements.h"
 #include "pfd.h"
