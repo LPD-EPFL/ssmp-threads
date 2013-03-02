@@ -24,7 +24,7 @@
 #include "pfd.h"
 
 
-#define ROUNDTRIP__
+#define ROUNDTRIP_
 #define DEBUG_
 
 uint32_t nm = 1000000;
@@ -179,7 +179,6 @@ main(int argc, char **argv)
 #endif  /* ROUNDTRIP */
 	  //	  PF_STOP(1);
 	  
-
 	  if (msg->w0 < lim_zeros) {
 	    if (--num_zeros == 0)
 	      {
@@ -195,20 +194,21 @@ main(int argc, char **argv)
 
       ssmp_barrier_wait(1);
 
-
       t_start = getticks();
       while (nm1--)
 	{
 	  msg->w0 = nm1;
 	  PF_START(1);
 	  ssmp_send(to, msg);
+#if !defined(ROUNDTRIP)
 	  PF_STOP(1);
-	
-	  /* PF_START(0); */
+#endif 
 #if defined(ROUNDTRIP)
+	  /* PF_START(0); */
 	  ssmp_recv_from(to, msg);
-#endif  /* ROUNDTRIP */
 	  /* PF_STOP(0); */
+	  PF_STOP(1);	
+#endif  /* ROUNDTRIP */
 
 	  to = dsl_seq[to_idx++];
 	  if (to_idx == num_dsl)
@@ -236,7 +236,10 @@ main(int argc, char **argv)
     {
       if (c == ssmp_id())
   	{
-	  PF_PRINT;
+	  if (c <= 1)
+	    {
+	      PF_PRINT;
+	    }
 	  if (color_dsl(c))
 	    {
 	      /* PFDPN(0, cur, 10); */

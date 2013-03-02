@@ -24,10 +24,12 @@
 #include "measurements.h"
 #include "pfd.h"
 
+#define ROUNTRIP_
+
 int num_procs = 2;
-long long int nm = 100000000;
+long long int nm = 10000000;
 ticks getticks_correction;
-uint8_t ID, on;
+uint8_t ID, on = 0;
 
 
 static inline void
@@ -55,25 +57,29 @@ barrier_wait(uint32_t* barrier)
 
 #define USE_INLINE_
 
-int main(int argc, char **argv) {
-  if (argc > 1) {
-    num_procs = atoi(argv[1]);
-  }
-  if (argc > 2) {
-    nm = atol(argv[2]);
-  }
+int
+main(int argc, char **argv) 
+{
+  if (argc > 3) 
+    {
+      on = atoi(argv[3 + ID]);
+      P("placed on core %d", on);
+    }
+  set_cpu(on);
+
+  if (argc > 1) 
+    {
+      num_procs = atoi(argv[1]);
+    }
+  if (argc > 2) 
+    {
+      nm = atol(argv[2]);
+    }
 
   ID = 0;
   printf("processes: %-10d / msgs: %10d\n", num_procs, nm);
 
   getticks_correction = getticks_correction_calc();
-
-  if (argc > 3) 
-    {
-      on = atoi(argv[3 + ID]);
-      P("placed on core %d", on);
-      set_cpu(on);
-    }
 
   ssmp_init(num_procs);
 
@@ -146,13 +152,16 @@ int main(int argc, char **argv) {
 
     while(1) 
       {
-	PF_START(0);
+	/* PF_START(0); */
 	ssmp_recv_from(from, msgp);
-	PF_STOP(0);
+	/* PF_STOP(0); */
 
+#if defined(ROUNTRIP)
 	/* PF_START(1); */
-	/* ssmp_send(from, msgp); */
+	ssmp_send(from, msgp);
 	/* PF_STOP(1); */
+	wait_cycles(128);
+#endif
 
 	if (msgp->w0 == out) 
 	  {
@@ -177,13 +186,23 @@ int main(int argc, char **argv) {
 
 	  PF_START(1);
 	  ssmp_send(to, msgp);
+#if !defined(ROUNTRIP)
 	  PF_STOP(1);
+#endif
 
 	  /* wait_cycles(1024); */
 
+#if defined(ROUNTRIP)
 	  /* PF_START(0); */
-	  /* ssmp_recv_from(to, msgp); */
+	  ssmp_recv_from(to, msgp);
 	  /* PF_STOP(0); */
+	  PF_STOP(1);
+
+	  if (msgp->w0 != nm1)
+	    {
+	      PRINT(" *** expected %5d, got %5d", nm1, msgp->w0);
+	    }
+#endif
 	}
     }
 
