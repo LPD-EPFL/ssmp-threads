@@ -35,8 +35,10 @@ void
 print_abs_deviation(abs_deviation_t* abs_dev)
 {
   printf("\n ---- abs deviation stats:\n");
-  PRINT("    avg : %-10.1f dev : %-10.1f num : %u", abs_dev->avg, abs_dev->abs_dev, abs_dev->num_vals);
-  PRINT("    min : %-10.1f (element: %6llu)\t\tmax : %-10.1f (element: %6llu)", abs_dev->min_val, abs_dev->min_val_idx, abs_dev->max_val, abs_dev->max_val_idx);
+  PRINT("    avg : %-10.1f dev : %-10.1f num : %llu", abs_dev->avg, abs_dev->abs_dev,
+	CAST_LLU(abs_dev->num_vals));
+  PRINT("    min : %-10.1f (element: %6llu)\t\tmax : %-10.1f (element: %6llu)", abs_dev->min_val, 
+	CAST_LLU(abs_dev->min_val_idx), abs_dev->max_val, CAST_LLU(abs_dev->max_val_idx));
   double v10p = 100 * 
     (1 - (abs_dev->num_vals - abs_dev->num_dev_10p) / (double) abs_dev->num_vals);
   PRINT("  0-10%% : %-10u (%4.1f%%  |  avg:  %6.1f)", abs_dev->num_dev_10p, v10p, abs_dev->avg_10p);
