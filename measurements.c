@@ -9,22 +9,6 @@ long long total_samples[ENTRY_TIMES_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 const char *measurement_msgs[ENTRY_TIMES_SIZE];
 ticks getticks_correction = 0;
 
-ticks getticks_correction_calc() 
-{
-#define GETTICKS_CALC_REPS 2000000
-  ticks t_dur = 0;
-  uint32_t i;
-  for (i = 0; i < GETTICKS_CALC_REPS; i++) {
-    ticks t_start = getticks();
-    ticks t_end = getticks();
-    t_dur += t_end - t_start;
-  }
-  getticks_correction = (ticks)(t_dur / (double) GETTICKS_CALC_REPS);
-  printf("corr in float %f -- in ticks %llu \n", (t_dur / (double) GETTICKS_CALC_REPS),
-	 (long long unsigned) getticks_correction);
-  return getticks_correction;
-}
-
 void 
 prints_ticks_stats(int start, int end) 
 {
@@ -45,7 +29,7 @@ prints_ticks_stats(int start, int end)
   
   if (have_output)
     {
-      printf("(PROFILING) >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+      printf("(PROFILING) >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
     }
   for (i = start; i < end; i++) {
     if (total_samples[i] && total_sum_ticks[i]) {
@@ -68,11 +52,11 @@ prints_ticks_stats(int start, int end)
 	     (double) total_sum_ticks[i]/total_samples[i]);
     }
   }
-  if (have_output)
-    {
-      printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< (PROFILING)\n");
-      fflush(stdout);
-    }
+  /* if (have_output) */
+  /*   { */
+  /*     printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< (PROFILING)\n"); */
+  /*     fflush(stdout); */
+  /*   } */
 }
 
 #endif

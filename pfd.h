@@ -36,17 +36,23 @@ typedef struct abs_deviation
 extern ticks* pfd_store[PFD_NUM_STORES];
 extern ticks _pfd_s[PFD_NUM_STORES];
 
+#if !defined(DO_TIMINGS)
+#  define PFDINIT(num_entries) 
+#  define PFDI(store) 
+#  define PFDO(store, entry) 
+#  define PFDP(store, num_vals) 
+#  define PFDPN(store, num_vals, num_print)
+#else  /* DO_TIMINGS */
+#  define PFDINIT(num_entries) pfd_store_init(num_entries)
 
-#define PFDINIT(num_entries) pfd_store_init(num_entries)
-
-#define PFDI(store)				\
+#  define PFDI(store)				\
   _pfd_s[store] = getticks();
 
 
-#define PFDO(store, entry)					\
+#  define PFDO(store, entry)					\
   pfd_store[store][entry] =  getticks() - _pfd_s[store] - getticks_correction;
 
-#define PFDP(store, num_vals)						\
+#  define PFDP(store, num_vals)						\
   {									\
   uint32_t _i;								\
   uint32_t p = (num_vals < PFD_PRINT_MAX)				\
@@ -63,7 +69,7 @@ extern ticks _pfd_s[PFD_NUM_STORES];
     }									\
   }
 
-#define PFDPN(store, num_vals, num_print)			\
+#  define PFDPN(store, num_vals, num_print)			\
   {								\
     uint32_t _i;						\
     uint32_t p = (num_vals < PFD_PRINT_MAX)			\
@@ -76,6 +82,7 @@ extern ticks _pfd_s[PFD_NUM_STORES];
     get_abs_deviation(pfd_store[store], num_vals, &ad);		\
     print_abs_deviation(&ad);					\
   }
+#endif /* !DO_TIMINGS */
 
 
 void pfd_store_init(uint32_t num_entries);

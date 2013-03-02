@@ -1,19 +1,32 @@
-PLATFORM_NUMA=0
 MEASUREMENTS=1
 PERF_COUNTERS=0
 
-UNAME := $(shell uname)
+UNAME := $(shell uname -n)
 
-ifeq ($(UNAME), Linux)
+ifeq ($(UNAME), lpd48core)
 PLATFORM=OPTERON
 CC=gcc
-VER_FLAGS=-DPLATFORM_NUMA
-endif
-ifeq ($(UNAME), SunOS)
-PLATFORM=NIAGARA
-CC=/opt/csw/bin/gcc -m64 -mcpu=v9 -mtune=v9
+PLATFORM_NUMA=1
 endif
 
+ifeq ($(UNAME), diassrv8)
+PLATFORM=XEON
+CC=gcc
+PLATFORM_NUMA=1
+endif
+
+ifeq ($(UNAME), maglite)
+PLATFORM=NIAGARA
+CC=/opt/csw/bin/gcc -m64 -mcpu=v9 -mtune=v9
+PLATFORM_NUMA=0
+endif
+
+ifeq ($(UNAME), parsasrv1.epfl.ch)
+PLATFORM=TILERA
+CC=tile-gcc
+PERF_CLFAGS= -ltmc
+LINK=-ltmc
+endif
 
 ifeq ($(P),0) #give P=0 to compile with debug info
 DEBUG_CFLAGS=-ggdb -Wall -g -fno-inline
@@ -23,7 +36,7 @@ CC=/opt/csw/bin/gcc -m32 -mcpu=v9 -mtune=v9
 endif
 else
 DEBUG_CFLAGS=-Wall
-PERF_CLFAGS+=-O3 #-O0 -g
+PERF_CLFAGS= -O3 #-O0 -g
 endif
 
 ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
@@ -34,15 +47,21 @@ ifeq ($(PERF_COUNTERS),1) #give PERF_COUNTERS=1 for compiling with the papi libr
 PERF_CLFAGS += -lpapi
 endif 
 
+VER_FLAGS+=-D$(PLATFORM)
 
-
-default: one2one
+default: one2one main
 
 main:	libssmp.a main.o common.h
 	$(CC) $(VER_FLAGS) -o main main.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 main.o:	main.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c main.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+bank:	libssmp.a bank.o common.h
+	gcc $(VER_FLAGS) -o bank bank.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+bank.o:	bank.c
+	gcc $(VER_FLAGS) -D_GNU_SOURCE -c bank.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 ssmp.o: ssmp.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmp.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
@@ -57,6 +76,7 @@ ssmp_broadcast.o: ssmp_broadcast.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmp_broadcast.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 ifeq ($(MEASUREMENTS),1)
+PERF_CLFAGS += -DDO_TIMINGS
 MEASUREMENTS_FILES += measurements.o pfd.o
 endif
 
@@ -72,8 +92,8 @@ libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h $(MEASUREMENTS
 	ar -r libssmp.a ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o $(MEASUREMENTS_FILES)
 	rm -f *.o	
 
-one2one: libssmp.a one2one.o common.h
-	$(CC) $(VER_FLAGS) -o one2one one2one.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+one2one: libssmp.a one2one.o common.h measurements.o pfd.o
+	gcc $(VER_FLAGS) -o one2one one2one.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 one2one.o:	one2one.c ssmp.c
 		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)

@@ -3,38 +3,63 @@
 //#define SSMP_DEBUG
 
 
-uint8_t id_to_core[] =
+#if defined(OPTERON)
+const uint8_t id_to_core[] =
   {
     0, 1, 2, 3, 4, 5,
-    6, 7, 8, 9, 10, 11, 
-    12, 13, 14, 15, 16, 17, 
-    18, 19, 20, 21, 22, 23, 
-    24, 25, 26, 27, 28, 29, 
-    30, 31, 32, 33, 34, 35, 
-    36, 37, 38, 39, 40, 41, 
-    42, 43, 44, 45, 46, 47 
+    6, 7, 8, 9, 10, 11,
+    12, 13, 14, 15, 16, 17,
+    18, 19, 20, 21, 22, 23,
+    24, 25, 26, 27, 28, 29,
+    30, 31, 32, 33, 34, 35,
+    36, 37, 38, 39, 40, 41,
+    42, 43, 44, 45, 46, 47
   };
+#elif defined(XEON)
 
-
-const uint8_t node_to_node_hops[8][8] =
+uint8_t id_to_core[] =
   {
-  /* 0  1  2  3  4  5  6  7           */
-    {0, 1, 2, 3, 2, 3, 2, 3},	/* 0 */
-    {1, 0, 3, 2, 3, 2, 3, 2},	/* 1 */
-    {2, 3, 0, 1, 2, 3, 2, 3},	/* 2 */
-    {3, 2, 1, 0, 3, 2, 3, 2},	/* 3 */
-    {2, 3, 2, 3, 0, 1, 2, 3},	/* 4 */
-    {3, 2, 3, 2, 1, 0, 3, 2},	/* 5 */
-    {2, 3, 2, 3, 2, 3, 0, 1},	/* 6 */
-    {3, 2, 3, 2, 3, 2, 1, 0},	/* 7 */
+    00, 41, 42, 43, 44, 45, 46, 47, 48, 49, 
+    50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 
+    60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 
+    70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+    10, 01, 02, 03, 04, 05, 06, 07,  8,  9, 
+    11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 
+    31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
   };
 
+const uint8_t id_to_node[] =
+  {
+    4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 
+    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 
+    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 
+  };
+#endif
+
+/* const uint8_t node_to_node_hops[8][8] = */
+/*   { */
+/*     /\* 0  1  2  3  4  5  6  7           *\/ */
+/*     {0, 1, 2, 3, 2, 3, 2, 3},	/\* 0 *\/ */
+/*     {1, 0, 3, 2, 3, 2, 3, 2},	/\* 1 *\/ */
+/*     {2, 3, 0, 1, 2, 3, 2, 3},	/\* 2 *\/ */
+/*     {3, 2, 1, 0, 3, 2, 3, 2},	/\* 3 *\/ */
+/*     {2, 3, 2, 3, 0, 1, 2, 3},	/\* 4 *\/ */
+/*     {3, 2, 3, 2, 1, 0, 3, 2},	/\* 5 *\/ */
+/*     {2, 3, 2, 3, 2, 3, 0, 1},	/\* 6 *\/ */
+/*     {3, 2, 3, 2, 3, 2, 1, 0},	/\* 7 *\/ */
+/*   }; */
 
 /* ------------------------------------------------------------------------------- */
 /* library variables */
 /* ------------------------------------------------------------------------------- */
 
-static ssmp_msg_t *ssmp_mem;
+  static ssmp_msg_t *ssmp_mem;
 volatile ssmp_msg_t **ssmp_recv_buf;
 volatile ssmp_msg_t **ssmp_send_buf;
 static ssmp_chunk_t *ssmp_chunk_mem;
@@ -91,10 +116,11 @@ void ssmp_init(int num_procs)
     }
 
   ssmp_mem = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
-  if (ssmp_mem == NULL || (unsigned int) ssmp_mem == 0xFFFFFFFF) {
-    perror("ssmp_mem = NULL\n");
-    exit(134);
-  }
+  if (ssmp_mem == NULL)
+    {
+      perror("ssmp_mem = NULL\n");
+      exit(134);
+    }
 
   long long unsigned int mem_just_int = (long long unsigned int) ssmp_mem;
   ssmp_barrier = (ssmp_barrier_t *) (mem_just_int);
@@ -115,8 +141,6 @@ void ssmp_init(int num_procs)
   ssmp_barrier_init(1, 0xFFFFFFFFFFFFFFFF, color_app);
 
 }
-
-#define P(s, t) printf("[%02d] ", id); printf(s, t); printf("\n"); fflush(stdout)
 
 void ssmp_mem_init(int id, int num_ues) {
   ssmp_id_ = id;
@@ -160,10 +184,11 @@ void ssmp_mem_init(int id, int num_ues) {
   }
 
   ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
-  if (tmp == NULL || (unsigned int) tmp == 0xFFFFFFFF) {
-    perror("tmp = NULL\n");
-    exit(134);
-  }
+  if (tmp == NULL)
+    {
+      perror("tmp = NULL\n");
+      exit(134);
+    }
 
   for (core = 0; core < num_ues; core++) {
     if (id == core) {
@@ -180,7 +205,7 @@ void ssmp_mem_init(int id, int num_ues) {
   /*********************************************************************************
     initialized own buffer
     ********************************************************************************
-   */
+    */
 
   ssmp_barrier_wait(0);
   
@@ -212,10 +237,11 @@ void ssmp_mem_init(int id, int num_ues) {
     }
 
     ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
-    if (tmp == NULL || (unsigned int) tmp == 0xFFFFFFFF) {
-      perror("tmp = NULL\n");
-      exit(134);
-    }
+    if (tmp == NULL)
+      {
+	perror("tmp = NULL\n");
+	exit(134);
+      }
 
     ssmp_send_buf[core] = tmp + ((core < id) ? (id - 1) : id);
   }
@@ -233,13 +259,13 @@ void ssmp_mem_init(int id, int num_ues) {
 }
 
 void ssmp_term() {
-  shm_unlink("/ssmp_mem");
+  if (ssmp_id_ == 0)
+    {
+      shm_unlink("/ssmp_mem");
+    }
   char keyF[100];
-  unsigned int c;
-  for (c = 0; c < ssmp_num_ues(); c++) {
-    sprintf(keyF, "/ssmp_core%03d", c);
-    shm_unlink(keyF);
-  }
+  sprintf(keyF, "/ssmp_core%03d", ssmp_id_);
+  shm_unlink(keyF);
 }
 
 
@@ -413,7 +439,7 @@ inline void ssmp_barrier_wait(int barrier_num) {
   
   int done = 0;
   while(!done) {
-    _mm_mfence();
+    /* _mm_mfence(); */
     done = 1;
     unsigned int ue;
     for (ue = 0; ue < ssmp_num_ues_; ue++) {
@@ -421,7 +447,7 @@ inline void ssmp_barrier_wait(int barrier_num) {
 	continue;
       }
       
-      _mm_mfence();
+      /* _mm_mfence(); */
       if ((b->checkpoints[ue] != (version + 1)) && (b->checkpoints[ue] != (version + 2))) {
 	done = 0;
 	break;
@@ -504,15 +530,16 @@ _mm_pause_rep(uint32_t num_reps)
     }
 }
 
-inline uint32_t 
-get_num_hops(uint32_t core1, uint32_t core2)
-{
-  uint32_t hops = node_to_node_hops[core1 / 6][core2 / 6];
-  //  PRINT("%2d is %d hop", core2, hops);
-  return hops;
-}
+/* inline uint32_t  */
+/* get_num_hops(uint32_t core1, uint32_t core2) */
+/* { */
+/*   uint32_t hops = node_to_node_hops[core1 / 6][core2 / 6]; */
+/*   //  PRINT("%2d is %d hop", core2, hops); */
+/*   return hops; */
+/* } */
 
-void set_cpu(int cpu) {
+void set_cpu(int cpu) 
+{
   ssmp_my_core = cpu;
 
   cpu_set_t mask;
@@ -524,12 +551,10 @@ void set_cpu(int cpu) {
     exit(3);
   }
 
-#ifdef PLATFORM_NUMA
+#ifdef OPTERON
   uint32_t numa_node = cpu/6;
-  SP("\t\t\tcore %02d -> tnuma_set_preferred(%d)", cpu, numa_node);
   numa_set_preferred(numa_node);  
-#endif /* PLATFORM_NUMA */
-  
+#endif
 }
 
 inline uint32_t
@@ -554,11 +579,53 @@ inline ticks getticks(void)
 }
 #endif
 
-inline int ssmp_id() {
+
+ticks getticks_correction;
+
+ticks 
+getticks_correction_calc() 
+{
+#define GETTICKS_CALC_REPS 2000000
+  ticks t_dur = 0;
+  uint32_t i;
+  for (i = 0; i < GETTICKS_CALC_REPS; i++) {
+    ticks t_start = getticks();
+    ticks t_end = getticks();
+    t_dur += t_end - t_start;
+  }
+  getticks_correction = (ticks)(t_dur / (double) GETTICKS_CALC_REPS);
+  /* printf("corr in float %f -- in ticks %llu \n", (t_dur / (double) GETTICKS_CALC_REPS), */
+  /* 	 (long long unsigned) getticks_correction); */
+  return getticks_correction;
+}
+
+/* Round up to next higher power of 2 (return x if it's already a power */
+/* of 2) for 32-bit numbers */
+uint32_t 
+pow2roundup (uint32_t x)
+{
+  if (x==0) return 1;
+  --x;
+  x |= x >> 1;
+  x |= x >> 2;
+  x |= x >> 4;
+  x |= x >> 8;
+  x |= x >> 16;
+  return x+1;
+}
+
+inline uint32_t
+ssmp_cores_on_same_socket(uint32_t core1, uint32_t core2)
+{
+  return (id_to_node[id_to_core[core1]] == id_to_node[id_to_core[core2]]);
+}
+inline int ssmp_id() 
+{
   return ssmp_id_;
 }
 
-inline int ssmp_num_ues() {
+inline int ssmp_num_ues() 
+{
   return ssmp_num_ues_;
 }
 

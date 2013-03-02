@@ -22,10 +22,12 @@
 #include "measurements.h"
 #include "pfd.h"
 
+#define ROUNTRIP_
+
 int num_procs = 2;
-long long int nm = 100000000;
+long long int nm = 10000000;
 ticks getticks_correction;
-int ID, on;
+uint8_t ID, on = 0;
 
 
 static inline void
@@ -53,126 +55,93 @@ barrier_wait(uint32_t* barrier)
 
 #define USE_INLINE_
 
-int main(int argc, char **argv) {
-  if (argc > 1) {
-    num_procs = atoi(argv[1]);
-  }
-  if (argc > 2) {
-    nm = atol(argv[2]);
-  }
+int
+main(int argc, char **argv) 
+{
+  on = id_to_core[0];
+  if (argc > 3) 
+    {
+      uint32_t c;
+      for (c = 3; c < argc; c++)
+	{
+	  id_to_core[c - 3] = atoi(argv[c]);
+	}
+      on = atoi(argv[3 + ID]);
+      P("placed on core %d", on);
+    }
+  set_cpu(on);
+
+  if (argc > 1) 
+    {
+      num_procs = atoi(argv[1]);
+    }
+  if (argc > 2) 
+    {
+      nm = atol(argv[2]);
+    }
 
   ID = 0;
-  printf("NUM of processes: %d\n", num_procs);
-  printf("NUM of msgs: %lld\n", nm);
-  printf("app guys sending to ID-1!\n");
-
-#if defined(USE_INLINE)
-  P("using INLINE");
-#elif defined(USE_MACRO)
-  P("using MACRO");
-#else      
-  P("using NORMAL");
-#endif
-
-  char keyF[100];
-  sprintf(keyF,"/finc");
-  PRINT("opening my local buff (%s)", keyF);
-
-  int size = sizeof(ssmp_msg_t);
-
-  int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
-  if (ssmpfd<0) {
-    if (errno != EEXIST) {
-      perror("In shm_open");
-      exit(1);
-    }
-    else {
-      ;
-    }
-
-    ssmpfd = shm_open(keyF, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG);
-    if (ssmpfd<0) {
-      perror("In shm_open");
-      exit(1);
-    }
-  }
-  else {
-    //P("%s newly openned", keyF);
-    if (ftruncate(ssmpfd, size) < 0) {
-      perror("ftruncate failed\n");
-      exit(1);
-    }
-  }
-
-  uint32_t* finc = (volatile uint32_t*) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
-  if (finc == NULL || (unsigned int) finc == 0xFFFFFFFF) {
-    perror("comb = NULL\n");
-    exit(134);
-  }
-
+  printf("processes: %-10d / msgs: %10lld\n", num_procs, nm);
 
   getticks_correction = getticks_correction_calc();
-
-  if (argc > 3) {
-    on = atoi(argv[3 + ID]);
-    P("placed on core %d", on);
-    set_cpu(on);
-  }
 
   ssmp_init(num_procs);
 
   int rank;
-  for (rank = 1; rank < num_procs; rank++) {
-    pid_t child = fork();
-    if (child < 0) {
-      P("Failure in fork():\n%s", strerror(errno));
-    } else if (child == 0) {
-      goto fork_done;
+  for (rank = 1; rank < num_procs; rank++)
+    {
+      pid_t child = fork();
+      if (child < 0) 
+	{
+	  P("Failure in fork():\n%s", strerror(errno));
+	} 
+      else if (child == 0) 
+	{
+	  goto fork_done;
+	}
     }
-  }
   rank = 0;
 
  fork_done:
   ID = rank;
-  uint32_t on = ID;
+  uint32_t on = id_to_core[ID];
 
-  P("Initializing child %u", rank);
-  if (argc > 3) {
-    if (ID > 0) {
-      on = atoi(argv[3 + ID]);
-      P("placed on core %d", on);
+  if (argc > 3)
+    {
+      if (ID > 0) 
+	{
+	  on = atoi(argv[3 + ID]);
+	  P("placed on core %d", on);
+	  set_cpu(on);
+	}
+    }
+  else
+    {
       set_cpu(on);
     }
-  }
-  else {
-    set_cpu(ID);
-  }
+  id_to_core[ID] = on;
+
   ssmp_mem_init(ID, num_procs);
-  P("Initialized child %u", rank);
+  /* P("Initialized child %u", rank); */
 
   ssmp_barrier_wait(0);
-  P("CLEARED barrier %d", 0);
+  /* P("CLEARED barrier %d", 0); */
 
 
   volatile  ssmp_msg_t *msgp;
   msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
   assert(msgp != NULL);
   
-  PF_MSG(1, "receiving");
-  PF_MSG(2, "sending");
+  PF_MSG(0, "receiving");
+  PF_MSG(1, "sending");
 
-  uint32_t f;
-  for (f = 0; f < 16; f++) finc[f] = 0;
-
-  PFDINIT(nm);
+  /* PFDINIT(nm); */
 
   uint32_t wc = 0;
   if (argc > 5)
     {
       wc = atoi(argv[5]);
     }
-  PRINT("wc = %u", wc);
-
 
   ssmp_barrier_wait(0);
 
@@ -180,7 +149,6 @@ int main(int argc, char **argv) {
    * main part
    *********************************************************************************/
   if (ID % 2 == 0) {
-    P("service core!");
 
     uint32_t from = ID+1;
     uint32_t out = nm-1;
@@ -190,59 +158,60 @@ int main(int argc, char **argv) {
 
     while(1) 
       {
-	/* ssmp_barrier_wait(0); */
-
-	PFDI(0);
+	/* PF_START(0); */
 	ssmp_recv_from(from, msgp);
-	PFDO(0, idx);
+	/* PF_STOP(0); */
 
+#if defined(ROUNTRIP)
+	/* PF_START(1); */
+	ssmp_send(from, msgp);
+	/* PF_STOP(1); */
+	wait_cycles(128);
+#endif
 
-	/* ssmp_barrier_wait(2); */
-
-	/* PFDI(1); */
-	/* ssmp_send(from, msgp); */
-	/* PFDO(1, idx); */
-
-	if (msgp->w0 == out) {
-	  PRINT("done..");
-	  break;
-	}
+	if (msgp->w0 == out) 
+	  {
+	    break;
+	  }
 
 	if (msgp->w0 != expected++)
 	  {
 	    PRINT(" *** expected %5d, got %5d", expected, msgp->w0);
 	  }
-
-
 	idx++;
       }
   }
   else 
     {
-      P("app core!");
-      unsigned int to = ID-1;
+      uint32_t to = ID-1;
       long long int nm1 = nm;
 
       for (nm1 = 0; nm1 < nm; nm1++)
 	{
-	  /* ssmp_barrier_wait(0); */
-
 	  msgp->w0 = nm1;
-	  PFDI(1);
+
+	  PF_START(1);
 	  ssmp_send(to, msgp);
-	  PFDO(1, nm1);
+#if !defined(ROUNTRIP)
+	  PF_STOP(1);
+#endif
 
+	  /* wait_cycles(1024); */
 
-	  /* ssmp_barrier_wait(2); */
+#if defined(ROUNTRIP)
+	  /* PF_START(0); */
+	  ssmp_recv_from(to, msgp);
+	  /* PF_STOP(0); */
+	  PF_STOP(1);
 
-	  /* PFDI(0); */
-	  /* ssmp_recv_from(to, msgp); */
-	  /* PFDO(0, nm1); */
+	  if (msgp->w0 != nm1)
+	    {
+	      PRINT(" *** expected %5d, got %5d", nm1, msgp->w0);
+	    }
+#endif
 	}
     }
 
-
-  extern uint64_t waited, waited_send;
 
   uint32_t c;
   for (c = 0; c < ssmp_num_ues(); c++)
@@ -253,8 +222,8 @@ int main(int argc, char **argv) {
 	  /* 	waited, waited / (double) nm, */
 	  /* 	waited_send, waited_send / (double) nm); */
 	  PF_PRINT;
-	  PFDPN(0, nm, wc);
-	  PFDPN(1, nm, wc);
+	  /* PFDPN(0, nm, wc); */
+	  /* PFDPN(1, nm, wc); */
 	}
       ssmp_barrier_wait(0);
     }
