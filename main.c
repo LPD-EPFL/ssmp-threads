@@ -213,9 +213,7 @@ main(int argc, char **argv)
 	  PF_STOP(1);
 #endif 
 #if defined(ROUNDTRIP)
-	  /* PF_START(0); */
 	  ssmp_recv_from(to, msg);
-	  /* PF_STOP(0); */
 	  PF_STOP(1);	
 #endif  /* ROUNDTRIP */
 
