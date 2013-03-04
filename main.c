@@ -18,11 +18,8 @@
 
 #include "common.h"
 #include "ssmp.h"
-#include "ssmp_recv.h"
-#include "ssmp_send.h"
 #include "measurements.h"
 #include "pfd.h"
-
 
 #define ROUNDTRIP_
 #define DEBUG_
@@ -124,8 +121,10 @@ main(int argc, char **argv)
 
   ssmp_barrier_init(2, 0, color_dsl);
   ssmp_barrier_init(1, 0, color_app1);
+#if defined(XEON)
   ssmp_barrier_init(0, 0, color_all);
   ssmp_barrier_init(5, 0, color_all);
+#endif
 
   uint8_t rank;
   for (rank = 1; rank < num_procs; rank++) 
@@ -142,15 +141,17 @@ main(int argc, char **argv)
 
  fork_done:
   ID = rank;
+
   set_cpu(id_to_core[ID]);
   ssmp_mem_init(ID, num_procs);
 
   ssmp_color_buf_t *cbuf = NULL;
-  if (color_dsl(ID)) {
-    cbuf = (ssmp_color_buf_t *) malloc(sizeof(ssmp_color_buf_t));
-    assert(cbuf != NULL);
-    ssmp_color_buf_init(cbuf, color_app1);
-  }
+  if (color_dsl(ID)) 
+    {
+      cbuf = (ssmp_color_buf_t *) malloc(sizeof(ssmp_color_buf_t));
+      assert(cbuf != NULL);
+      ssmp_color_buf_init(cbuf, color_app1);
+    }
 
   ssmp_msg_t *msg;
   msg = (ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
@@ -169,7 +170,6 @@ main(int argc, char **argv)
   ticks t_start = 0, t_end = 0;
 
   ssmp_barrier_wait(0);
-
   /* ********************************************************************************
      main functionality
   *********************************************************************************/
@@ -178,10 +178,7 @@ main(int argc, char **argv)
     {
       while(1) 
 	{
-	  /* PF_START(0); */
 	  ssmp_recv_color_start(cbuf, msg);
-	  /* PF_STOP(0); */
-	  //	  PF_START(1);
 #if defined(ROUNDTRIP)
 	  ssmp_send(msg->sender, msg);
 #endif  /* ROUNDTRIP */
@@ -190,7 +187,6 @@ main(int argc, char **argv)
 	  if (msg->w0 < lim_zeros) {
 	    if (--num_zeros == 0)
 	      {
-		PRINT("done");
 		break;
 	      }
 	  }
@@ -204,37 +200,71 @@ main(int argc, char **argv)
       ssmp_barrier_wait(1);
 
       t_start = getticks();
-      while (nm1--)
+
+#if defined(NIAGARA)
+      if (ID == 1)
 	{
-	  msg->w0 = nm1;
-	  PF_START(1);
-	  ssmp_send(to, msg);
+#endif
+	  while (nm1--)
+	    {
+	      msg->w0 = nm1;
+	      PF_START(1);
+	      ssmp_send(to, msg);
 #if !defined(ROUNDTRIP)
-	  PF_STOP(1);
+	      PF_STOP(1);
 #endif 
 #if defined(ROUNDTRIP)
-	  /* PF_START(0); */
-	  ssmp_recv_from(to, msg);
-	  /* PF_STOP(0); */
-	  PF_STOP(1);	
+	      ssmp_recv_from(to, msg);
+	      PF_STOP(1);	
 #endif  /* ROUNDTRIP */
 
-	  to = dsl_seq[to_idx++];
-	  if (to_idx == num_dsl)
-	    {
-	      to_idx = 0;
-	    }
+	      to = dsl_seq[to_idx++];
+	      if (to_idx == num_dsl)
+		{
+		  to_idx = 0;
+		}
 
-	  if (msg->w0 != nm1) 
-	    {
-	      P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
-	    }
+	      if (msg->w0 != nm1) 
+		{
+		  P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
+		}
 
-	  if (delay_after > 0)
-	    {
-	      wait_cycles(delay_after);
+	      if (delay_after > 0)
+		{
+		  wait_cycles(delay_after);
+		}
 	    }
+#if defined(NIAGARA)
 	}
+      else
+	{
+	  while (nm1--)
+	    {
+	      msg->w0 = nm1;
+	      ssmp_send(to, msg);
+
+#if defined(ROUNDTRIP)
+	      ssmp_recv_from(to, msg);
+#endif  /* ROUNDTRIP */
+
+	      to = dsl_seq[to_idx++];
+	      if (to_idx == num_dsl)
+		{
+		  to_idx = 0;
+		}
+
+	      if (msg->w0 != nm1) 
+		{
+		  P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
+		}
+
+	      if (delay_after > 0)
+		{
+		  wait_cycles(delay_after);
+		}
+	    }
+	}      
+#endif
       t_end = getticks();
     }
 
