@@ -4,6 +4,7 @@
 *~
 /.nfs00000000085a1c9200000058
 /.tmp
+/@LongLink
 /a.out
 /bank
 /bank_simple
@@ -11,6 +12,7 @@
 /cas_stresh
 /color_buf
 /color_buf_memcpy
+/core
 /l1_spil
 /main.S
 /mem
