@@ -14,15 +14,15 @@ extern "C" {
 
   /* typedef uint64_t ticks; */
 
-#define PLATFORM_MCORE
-
 #ifndef REF_SPEED_GHZ
-#  if defined(PLATFORM_MCORE)
+#  if defined(OPTERON)
 #    define REF_SPEED_GHZ           2.1
-#  elif defined(SCC)
-#    define REF_SPEED_GHZ           0.533
-#  elif defined(PLATFORM_TILERA)
-#    define REF_SPEED_GHZ           0.7
+#  elif defined(XEON)
+#    error "Need to set REF_SPEED_GHZ for the platform"
+#  elif defined(TILERA)
+#    define REF_SPEED_GHZ           1.2
+#  elif defined(NIAGARA)
+#    define REF_SPEED_GHZ           1.17
 #  else
 #    error "Need to set REF_SPEED_GHZ for the platform"
 #  endif
