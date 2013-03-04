@@ -137,12 +137,6 @@ main(int argc, char **argv)
 
   /* PFDINIT(nm); */
 
-  uint32_t wc = 0;
-  if (argc > 5)
-    {
-      wc = atoi(argv[5]);
-    }
-
   ssmp_barrier_wait(0);
 
   /********************************************************************************* 
@@ -166,7 +160,9 @@ main(int argc, char **argv)
 	/* PF_START(1); */
 	ssmp_send(from, msgp);
 	/* PF_STOP(1); */
+#  if !defined(NIAGARA)
 	wait_cycles(128);
+#  endif
 #endif
 
 	if (msgp->w0 == out) 
