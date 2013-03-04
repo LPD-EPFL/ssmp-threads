@@ -13,9 +13,17 @@
 #include <string.h>
 #include <sched.h>
 #include <inttypes.h>
+#include "atomic_ops.h"
+
+#ifdef __sparc__
+#  include <sys/types.h>
+#  include <sys/processor.h>
+#  include <sys/procset.h>
+#endif /* __sparc */
+
 #ifdef PLATFORM_NUMA
-#include <emmintrin.h>
-#include <numa.h>
+#  include <emmintrin.h>
+#  include <numa.h>
 #endif /* PLATFORM_NUMA */
 
 #include "measurements.h"
@@ -23,6 +31,8 @@
 /* ------------------------------------------------------------------------------- */
 /* settings */
 /* ------------------------------------------------------------------------------- */
+#define SSMP_MEM_NAME "/ssmp_mem2"
+
 #define USE_ATOMIC_
 #define WAIT_TIME 66
 
@@ -33,20 +43,38 @@ extern const uint8_t node_to_node_hops[8][8];
 /* ------------------------------------------------------------------------------- */
 #define SSMP_NUM_BARRIERS 16 /*number of available barriers*/
 #define SSMP_CHUNK_SIZE 1020
-#define SSMP_CACHE_LINE_SIZE 64
+
+#if defined(__sparc__)
+#  define SSMP_CACHE_LINE_SIZE 64
+#else
+#  define SSMP_CACHE_LINE_SIZE 64
+#endif /* __sparc__ */
 
 #define BUF_EMPTY 0
 #define BUF_MESSG 1
 #define BUF_LOCKD 2
 
 
+#if defined(__sparc__)
+#define PREFETCHW(x) 
+#define PREFETCH(x) 
+#define PREFETCHNTA(x) 
+#define PREFETCHT0(x) 
+#define PREFETCHT1(x) 
+#define PREFETCHT2(x) 
+
+#define _mm_pause() PAUSE
+#define _mm_mfence() __asm__ __volatile__("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore");
+#define _mm_lfence() __asm__ __volatile__("membar #LoadLoad | #LoadStore");
+#define _mm_sfence() __asm__ __volatile__("membar #StoreLoad | #StoreStore");
+#else  /* !__sparc__ */
 #define PREFETCHW(x) asm volatile("prefetchw %0" :: "m" (*(unsigned long *)x)) /* write */
 #define PREFETCH(x) asm volatile("prefetch %0" :: "m" (*(unsigned long *)x)) /* read */
 #define PREFETCHNTA(x) asm volatile("prefetchnta %0" :: "m" (*(unsigned long *)x)) /* non-temporal */
 #define PREFETCHT0(x) asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x)) /* all levels */
 #define PREFETCHT1(x) asm volatile("prefetcht1 %0" :: "m" (*(unsigned long *)x)) /* all but L1 */
 #define PREFETCHT2(x) asm volatile("prefetcht2 %0" :: "m" (*(unsigned long *)x)) /* all but L1 & L2 */
-
+#endif /* !__sparc__ */
 #define SP(args...) printf("[%d] ", ssmp_id_); printf(args); printf("\n"); fflush(stdout)
 #ifdef SSMP_DEBUG
 #define PD(args...) printf("[%d] ", ssmp_id_); printf(args); printf("\n"); fflush(stdout)
@@ -65,11 +93,23 @@ extern const uint8_t node_to_node_hops[8][8];
 /* ------------------------------------------------------------------------------- */
 /* types */
 /* ------------------------------------------------------------------------------- */
-typedef int ssmp_chk_t; /*used for the checkpoints*/
+typedef uint32_t ssmp_chk_t; /*used for the checkpoints*/
 
 /*msg type: contains 15 words of data and 1 word flag*/
-typedef struct ALIGNED(64) ssmp_msg 
+typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg 
 {
+#if defined(__sparc__)
+  int32_t w0;
+  int32_t w1;
+  int32_t w2;
+
+  uint8_t pad[3];
+  union 
+  {
+    volatile uint8_t state;
+    volatile uint8_t sender;
+  };
+#else
   int w0;
   int w1;
   int w2;
@@ -84,6 +124,7 @@ typedef struct ALIGNED(64) ssmp_msg
     volatile uint32_t state;
     volatile uint32_t sender;
   };
+#endif	/* __sparc__ */
 } ssmp_msg_t;
 
 typedef struct 
@@ -93,13 +134,19 @@ typedef struct
 } ssmp_chunk_t;
 
 /*type used for color-based function, i.e. functions that operate on a subset of the cores according to a color function*/
-typedef struct ALIGNED(64) ssmp_color_buf_struct
+typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_color_buf_struct
 {
+#if defined(__sparc__)
+  uint64_t num_ues;
+  volatile uint8_t** buf_state;
+  volatile ssmp_msg_t** buf;
+  uint8_t* from;
+#else
   uint64_t num_ues;
   volatile uint32_t** buf_state;
   volatile ssmp_msg_t** buf;
   uint32_t* from;
-  /* int32_t pad[8]; */
+#endif	/* __sparc__ */
 } ssmp_color_buf_t;
 
 
@@ -108,8 +155,8 @@ typedef struct
 {
   uint64_t participants;                  /*the participants of a barrier can be given either by this, as bits (0 -> no, 1 ->participate */
   int (*color)(int); /*or as a color function: if the function return 0 -> no participant, 1 -> participant. The color function has priority over the lluint participants*/
-  ssmp_chk_t * checkpoints; /*the checkpoints array used for sync*/
-  uint32_t version; /*the current version of the barrier, used to make a barrier reusable*/
+  uint32_t ticket;
+  uint32_t cleared;
 } ssmp_barrier_t;
 
 volatile extern ssmp_msg_t **ssmp_recv_buf;

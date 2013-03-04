@@ -58,6 +58,18 @@ void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg)
     memcpy((void*) msg, (const void*) tmpm, SSMP_CACHE_LINE_SIZE);
     tmpm->state = BUF_EMPTY;
     _mm_mfence();
+
+#elif defined(NIAGARA)  /* --------------------------------------- niagara */
+
+  while(tmpm->state != BUF_MESSG) 
+    {
+      _mm_pause();
+    }
+  
+  msg->w0 = tmpm->w0;
+  msg->w1 = tmpm->w1;
+  msg->w2 = tmpm->w2;
+  tmpm->state = BUF_EMPTY;
 #endif
     }
 
@@ -99,7 +111,12 @@ inline void
 ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 {
   uint32_t num_ues = cbuf->num_ues;
+#if defined(NIAGARA)
+  volatile uint8_t** cbuf_state = cbuf->buf_state;
+#else
   volatile uint32_t** cbuf_state = cbuf->buf_state;
+#endif
+
   volatile ssmp_msg_t** buf = cbuf->buf;
 
   while(1) 
@@ -157,40 +174,59 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 		    {
 		      start_recv_from = 0;
 		    }
+#elif defined(NIAGARA)
+		  if (*cbuf_state[start_recv_from] == BUF_MESSG)
+		    {
+		      volatile ssmp_msg_t* tmpm = cbuf->buf[start_recv_from];
+
+		      char* msg_c = (char*) msg;
+		      char* tmpm_c = (char*) tmpm;
+		      uint8_t c;
+		      for (c = 0; c < SSMP_CACHE_LINE_SIZE; c++)
+		      	{
+		      	  msg_c[c] = tmpm_c[c];
+		      	}
+		      tmpm->state = BUF_EMPTY;
+		      msg->sender = cbuf->from[start_recv_from];
+
+		      if (++start_recv_from == num_ues)
+			{
+			  start_recv_from = 0;
+			}
 #endif
-		  return;
+		      return;
+		    }
 		}
+	      start_recv_from = 0;
 	    }
-	  start_recv_from = 0;
 	}
-    }
 
-  inline 
-    void ssmp_recv_from_big(int from, void *data, size_t length) 
-  {
-    int last_chunk = length % SSMP_CHUNK_SIZE;
-    int num_chunks = length / SSMP_CHUNK_SIZE;
+      inline 
+	void ssmp_recv_from_big(int from, void *data, size_t length) 
+      {
+	int last_chunk = length % SSMP_CHUNK_SIZE;
+	int num_chunks = length / SSMP_CHUNK_SIZE;
 
-    while(num_chunks--) {
+	while(num_chunks--) {
 
-      while(!ssmp_chunk_buf[from]->state);
+	  while(!ssmp_chunk_buf[from]->state);
 
-      memcpy(data, ssmp_chunk_buf[from], SSMP_CHUNK_SIZE);
-      data = ((char *) data) + SSMP_CHUNK_SIZE;
+	  memcpy(data, ssmp_chunk_buf[from], SSMP_CHUNK_SIZE);
+	  data = ((char *) data) + SSMP_CHUNK_SIZE;
 
-      ssmp_chunk_buf[from]->state = 0;
-    }
+	  ssmp_chunk_buf[from]->state = 0;
+	}
 
-    if (!last_chunk) {
-      return;
-    }
+	if (!last_chunk) {
+	  return;
+	}
 
-    while(!ssmp_chunk_buf[from]->state);
+	while(!ssmp_chunk_buf[from]->state);
 
-    memcpy(data, ssmp_chunk_buf[from], last_chunk);
+	memcpy(data, ssmp_chunk_buf[from], last_chunk);
 
-    ssmp_chunk_buf[from]->state = 0;
+	ssmp_chunk_buf[from]->state = 0;
 
-    PD("recved from %d\n", from);
-  }
+	PD("recved from %d\n", from);
+      }
 

@@ -40,6 +40,20 @@ const uint8_t id_to_node[] =
     6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 
     7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 
   };
+
+#elif defined(NIAGARA)
+uint8_t id_to_core[] =
+  {
+    0, 8, 16, 24, 32, 40, 48, 56,
+    9, 17, 25, 33, 41, 49, 57,
+    10, 18, 26, 34, 42, 50, 58,
+    11, 19, 27, 35, 43, 51, 59,
+    12, 20, 28, 36, 44, 52, 60,
+    13, 21, 29, 37, 45, 53, 61,
+    14, 22, 30, 38, 46, 54, 62,
+    15, 23, 31, 39, 47, 55, 63,
+    1, 2, 3, 4, 5, 6, 7
+  };
 #endif
 
 /* const uint8_t node_to_node_hops[8][8] = */
@@ -59,7 +73,7 @@ const uint8_t id_to_node[] =
 /* library variables */
 /* ------------------------------------------------------------------------------- */
 
-  static ssmp_msg_t *ssmp_mem;
+static ssmp_msg_t *ssmp_mem;
 volatile ssmp_msg_t **ssmp_recv_buf;
 volatile ssmp_msg_t **ssmp_send_buf;
 static ssmp_chunk_t *ssmp_chunk_mem;
@@ -76,19 +90,140 @@ static uint32_t ssmp_my_core;
 /* init / term the MP system */
 /* ------------------------------------------------------------------------------- */
 
+#if defined(NIAGARA)
+void ssmp_init(int num_procs)
+{
+  //create the shared space which will be managed by the allocator
+  uint32_t sizem, sizeb, sizeckp, sizeui, sizecnk, size;;
+
+  sizem = (num_procs * num_procs) * sizeof(ssmp_msg_t);
+  sizeb = SSMP_NUM_BARRIERS * sizeof(ssmp_barrier_t);
+  sizeckp = 0;
+  sizeui = num_procs * sizeof(int);
+  /* sizecnk = num_procs * sizeof(ssmp_chunk_t); */
+  sizecnk = 0;
+  size = sizem + sizeb + sizeckp + sizeui + sizecnk;
+
+  char keyF[100];
+  sprintf(keyF, SSMP_MEM_NAME);
+
+  int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
+  if (ssmpfd<0)
+    {
+      if (errno != EEXIST)
+	{
+	  perror("In shm_open");
+	  exit(1);
+	}
+
+      //this time it is ok if it already exists
+      ssmpfd = shm_open(keyF, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG);
+      if (ssmpfd<0)
+	{
+	  perror("In shm_open");
+	  exit(1);
+	}
+    }
+  else
+    {
+      if (ftruncate(ssmpfd, size) < 0) {
+	perror("ftruncate failed\n");
+	exit(1);
+      }
+    }
+
+  ssmp_mem = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
+  if (ssmp_mem == NULL)
+    {
+      perror("ssmp_mem = NULL\n");
+      exit(134);
+    }
+
+  long long unsigned int mem_just_int = (long long unsigned int) ssmp_mem;
+  ssmp_barrier = (ssmp_barrier_t *) (mem_just_int + sizem);
+  /* ssmp_chk_t *chks = (ssmp_chk_t *) (mem_just_int + sizem + sizeb); */
+  ues_initialized = (int *) (mem_just_int + sizem + sizeb + sizeckp);
+  ssmp_chunk_mem = (ssmp_chunk_t *) (mem_just_int + sizem + sizeb + sizeckp + sizeui);
+
+  /* int ue; */
+  /* for (ue = 0; ue < SSMP_NUM_BARRIERS * num_procs; ue++) { */
+  /*   chks[ue] = 0; */
+  /*   _mm_sfence(); */
+  /* } */
+
+  int bar;
+  for (bar = 0; bar < SSMP_NUM_BARRIERS; bar++) {
+    /* ssmp_barrier[bar].checkpoints = (chks + (bar * num_procs)); */
+    ssmp_barrier_init(bar, 0xFFFFFFFFFFFFFFFF, NULL);
+  }
+  ssmp_barrier_init(1, 0xFFFFFFFFFFFFFFFF, color_app);
+
+  _mm_mfence();
+}
+
+void ssmp_mem_init(int id, int num_ues) 
+{  
+  ssmp_id_ = id;
+  ssmp_num_ues_ = num_ues;
+  last_recv_from = (id + 1) % num_ues;
+
+  ssmp_recv_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
+  ssmp_send_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
+  /* ssmp_chunk_buf = (ssmp_chunk_t **) malloc(num_ues * sizeof(ssmp_chunk_t *)); */
+  if (ssmp_recv_buf == NULL || ssmp_send_buf == NULL) /* || ssmp_chunk_buf == NULL) { */
+    {
+      perror("malloc@ ssmp_mem_init\n");
+      exit(-1);
+    }
+
+  int core;
+  for (core = 0; core < num_ues; core++) 
+    {
+      ssmp_recv_buf[core] = ssmp_mem + (id * num_ues) + core;
+      ssmp_recv_buf[core]->state = 0;
+
+      ssmp_send_buf[core] = ssmp_mem + (core * num_ues) + id;
+    }
+
+  ues_initialized[id] = 1;
+
+  //  SP("waiting for all to be initialized!");
+  int ue;
+  for (ue = 0; ue < num_ues; ue++) {
+    while(!ues_initialized[ue]) 
+      {
+	_mm_pause();
+	_mm_mfence();
+      };
+  }
+  //  SP("\t\t\tall initialized!");
+}
+
+void ssmp_term() 
+{
+  if (ssmp_id_ == 0 && shm_unlink(SSMP_MEM_NAME) < 0)
+    {
+      printf("Could not unlink ssmp_mem\n");
+      fflush(stdout);
+    }
+}
+
+
+#else
+
 void ssmp_init(int num_procs)
 {
   //create the shared space which will be managed by the allocator
   unsigned int sizeb, sizeckp, sizeui, sizecnk, size;;
 
   sizeb = SSMP_NUM_BARRIERS * sizeof(ssmp_barrier_t);
-  sizeckp = SSMP_NUM_BARRIERS * num_procs * sizeof(ssmp_chk_t);
+  sizeckp = 0;
   sizeui = num_procs * sizeof(int);
   sizecnk = num_procs * sizeof(ssmp_chunk_t);
   size = sizeb + sizeckp + sizeui + sizecnk;
 
   char keyF[100];
-  sprintf(keyF,"/ssmp_mem");
+  sprintf(keyF, SSMP_MEM_NAME);
 
   int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
   if (ssmpfd<0)
@@ -124,25 +259,21 @@ void ssmp_init(int num_procs)
 
   long long unsigned int mem_just_int = (long long unsigned int) ssmp_mem;
   ssmp_barrier = (ssmp_barrier_t *) (mem_just_int);
-  ssmp_chk_t *chks = (ssmp_chk_t *) (mem_just_int + sizeb);
   ues_initialized = (int *) (mem_just_int + sizeb + sizeckp);
   ssmp_chunk_mem = (ssmp_chunk_t *) (mem_just_int + sizeb + sizeckp + sizeui);
 
-  int ue;
-  for (ue = 0; ue < SSMP_NUM_BARRIERS * num_procs; ue++) {
-    chks[ue] = 0;
-  }
-
   int bar;
-  for (bar = 0; bar < SSMP_NUM_BARRIERS; bar++) {
-    ssmp_barrier[bar].checkpoints = (chks + (bar * num_procs));
-    ssmp_barrier_init(bar, 0xFFFFFFFFFFFFFFFF, NULL);
-  }
+  for (bar = 0; bar < SSMP_NUM_BARRIERS; bar++) 
+    {
+      ssmp_barrier_init(bar, 0xFFFFFFFFFFFFFFFF, NULL);
+    }
   ssmp_barrier_init(1, 0xFFFFFFFFFFFFFFFF, color_app);
 
+  _mm_mfence();
 }
 
-void ssmp_mem_init(int id, int num_ues) {
+void ssmp_mem_init(int id, int num_ues) 
+{  
   ssmp_id_ = id;
   ssmp_num_ues_ = num_ues;
   last_recv_from = (id + 1) % num_ues;
@@ -251,15 +382,20 @@ void ssmp_mem_init(int id, int num_ues) {
   //  SP("waiting for all to be initialized!");
   int ue;
   for (ue = 0; ue < num_ues; ue++) {
-    while(!ues_initialized[ue]) {
-      _mm_mfence();
-    };
+    while(!ues_initialized[ue]) 
+      {
+	_mm_pause();
+	_mm_mfence();
+      };
   }
   //  SP("\t\t\tall initialized!");
 }
 
-void ssmp_term() {
-  if (ssmp_id_ == 0)
+
+void
+ssmp_term() 
+{
+  if (ssmp_id_ == 0 && shm_unlink(SSMP_MEM_NAME) < 0)
     {
       shm_unlink("/ssmp_mem");
     }
@@ -267,6 +403,8 @@ void ssmp_term() {
   sprintf(keyF, "/ssmp_core%03d", ssmp_id_);
   shm_unlink(keyF);
 }
+#endif 
+
 
 
 /* ------------------------------------------------------------------------------- */
@@ -319,22 +457,39 @@ void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int)) {
       exit(-1);
     }
 
+#if defined(__sparc)
+  cbuf->buf_state = (volatile uint8_t**) malloc(size_buf);
+#else
   cbuf->buf_state = (volatile unsigned int **) malloc(size_buf);
+#endif	/* __sparc__ */
   if (cbuf->buf_state == NULL) {
     perror("malloc @ ssmp_color_buf_init");
     exit(-1);
   }
   
+#if defined(__sparc)
+  uint32_t size_from = num_ues * sizeof(uint8_t);
+#else
   uint32_t size_from = num_ues * sizeof(uint32_t);
+#endif	/* __sparc__ */
 
   if (size_from % SSMP_CACHE_LINE_SIZE)
     {
+#if defined(__sparc)
+      size_pad = (SSMP_CACHE_LINE_SIZE - (size_from % SSMP_CACHE_LINE_SIZE)) / sizeof(uint8_t);
+      size_from += size_pad * sizeof(uint8_t);
+#else
       size_pad = (SSMP_CACHE_LINE_SIZE - (size_from % SSMP_CACHE_LINE_SIZE)) / sizeof(uint32_t);
       size_from += size_pad * sizeof(uint32_t);
+#endif	/* __sparc__ */
     }
 
 
+#if defined(__sparc)
+  cbuf->from = (uint8_t*) memalign(SSMP_CACHE_LINE_SIZE, size_from);
+#else
   cbuf->from = (uint32_t *) malloc(size_from);
+#endif	/* __sparc__  */
   if (cbuf->from == NULL)
     {
       perror("malloc @ ssmp_color_buf_init");
@@ -390,106 +545,87 @@ inline void ssmp_barrier_init(int barrier_num, long long int participants, int (
 
   ssmp_barrier[barrier_num].participants = 0xFFFFFFFFFFFFFFFF;
   ssmp_barrier[barrier_num].color = color;
-  int ue;
-  for (ue = 0; ue < ssmp_num_ues_; ue++) {
-    ssmp_barrier[barrier_num].checkpoints[ue] = 0;
-  }
-  ssmp_barrier[barrier_num].version = 0;
+  ssmp_barrier[barrier_num].ticket = 0;
+  ssmp_barrier[barrier_num].cleared = 0;
 }
 
-inline void ssmp_barrier_wait(int barrier_num) {
+void 
+ssmp_barrier_wait(int barrier_num) 
+{
   if (barrier_num >= SSMP_NUM_BARRIERS) {
     return;
   }
 
+  _mm_sfence();
+  _mm_lfence();
   ssmp_barrier_t *b = &ssmp_barrier[barrier_num];
-  unsigned int version = b->version;
-
   PD(">>Waiting barrier %d\t(v: %d)", barrier_num, version);
 
   int (*col)(int);
-  col= b->color;
+  col = b->color;
 
-  unsigned int *participants = (unsigned int *) malloc(ssmp_num_ues_ * sizeof(unsigned int));
-  if (participants == NULL) {
-    perror("malloc @ ssmp_barrier_wait");
-    exit(-1);
-  }
-  long long unsigned int bpar = b->participants;
+  uint64_t bpar = (uint64_t) b->participants;
+  uint32_t num_part = 0;
+
   int from;
-  for (from = 0; from < ssmp_num_ues_; from++) {
-    /* if there is a color function it has priority */
-    if (col != NULL) {
-      participants[from] = col(from);
+  for (from = 0; from < ssmp_num_ues_; from++) 
+    {
+      /* if there is a color function it has priority */
+      if (col != NULL) 
+	{
+	  num_part += col(from);
+	  if (from == ssmp_id_ && !col(from))
+	    {
+	      return;
+	    }
+	}
+      else 
+	{
+	  uint32_t is_part = (uint32_t) (bpar & 0x0000000000000001);
+	  num_part += is_part;
+	  if (ssmp_id_ == from && !is_part)
+	    {
+	      return;
+	    }
+	  bpar >>= 1;
+	}
     }
-    else {
-      participants[from] = (unsigned int) (bpar & 0x0000000000000001);
-      bpar >>= 1;
-    }
-  }
   
-  if (participants[ssmp_id_] == 0) {
-    PD("<<Cleared barrier %d\t(v: %d)\t[not participant!]", barrier_num, version);
-    free(participants);
-    return;
-  }
-
-  //round 1;
-  b->checkpoints[ssmp_id_] = version + 1;
   
-  int done = 0;
-  while(!done) {
-    /* _mm_mfence(); */
-    done = 1;
-    unsigned int ue;
-    for (ue = 0; ue < ssmp_num_ues_; ue++) {
-      if (participants[ue] == 0) {
-	continue;
-      }
-      
-      /* _mm_mfence(); */
-      if ((b->checkpoints[ue] != (version + 1)) && (b->checkpoints[ue] != (version + 2))) {
-	done = 0;
-	break;
-      }
+  _mm_lfence();
+  uint32_t reps = 1;
+  while (b->cleared == 1)
+    {
+      _mm_pause_rep(reps++);
+      reps &= 255;
+      _mm_lfence();
     }
-  }
 
-  //round 2;
-  b->checkpoints[ssmp_id_] = version + 2;
-
-  done = 0;
-  while(!done) {
-    done = 1;
-    int ue;
-    for (ue = 0; ue < ssmp_num_ues_; ue++) {
-      if (participants[ue] == 0) {
-	continue;
-      }
-      
-      if (b->version > version) {
-	PD("<<Cleared barrier %d\t(v: %d)\t[someone was faster]", barrier_num, version);
-	b->checkpoints[ssmp_id_] = 0;
-	free(participants);
-	return;
-      }
-
-      if (b->checkpoints[ue] == (version + 1)) {
-	done = 0;
-	break;
-      }
+  uint32_t my_ticket = IAF_U32(&b->ticket);
+  if (my_ticket == num_part)
+    {
+      b->cleared = 1;
     }
-  }
 
-  b->checkpoints[ssmp_id_] = 0;
-  if (b->version <= version) {
-    b->version = version + 3;
-  }
+  _mm_mfence();
 
-  free(participants);
+  reps = 1;
+  while (b->cleared == 0)
+    {
+      _mm_pause_rep(reps++);
+      reps &= 255;
+      _mm_lfence();
+    }
+  
+  my_ticket = DAF_U32(&b->ticket);
+  if (my_ticket == 0)
+    {
+      b->cleared = 0;
+    }
+
+  _mm_mfence();
   PD("<<Cleared barrier %d (v: %d)", barrier_num, version);
 }
-
 
 /* ------------------------------------------------------------------------------- */
 /* help funcitons */
@@ -538,8 +674,12 @@ _mm_pause_rep(uint32_t num_reps)
 /*   return hops; */
 /* } */
 
-void set_cpu(int cpu) 
+void
+set_cpu(int cpu) 
 {
+#ifdef __sparc__
+  processor_bind(P_LWPID,P_MYID, cpu, NULL);
+#else  /* !SPARC */
   ssmp_my_core = cpu;
 
   cpu_set_t mask;
@@ -550,6 +690,7 @@ void set_cpu(int cpu)
 	   strerror(errno));
     exit(3);
   }
+#endif /* SPARC */
 
 #ifdef OPTERON
   uint32_t numa_node = cpu/6;
@@ -576,6 +717,13 @@ inline ticks getticks(void)
   unsigned hi, lo;
   __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
   return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
+}
+#elif defined(__sparc__)
+inline ticks getticks()
+{
+  ticks ret;
+  __asm__ __volatile__ ("rd %%tick, %0" : "=r" (ret) : "0" (ret));
+  return ret;
 }
 #endif
 
@@ -617,7 +765,13 @@ pow2roundup (uint32_t x)
 inline uint32_t
 ssmp_cores_on_same_socket(uint32_t core1, uint32_t core2)
 {
+#if defined(OPTERON)
+  return (id_to_core[core1] / 6) == (id_to_core[core2] / 6);
+#elif defined(XEON)
   return (id_to_node[id_to_core[core1]] == id_to_node[id_to_core[core2]]);
+#else
+  return 1;
+#endif
 }
 inline int ssmp_id() 
 {

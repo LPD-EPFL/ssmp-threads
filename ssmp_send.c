@@ -57,6 +57,17 @@ void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg)
   msg->state = BUF_MESSG;
   memcpy((void*) tmpm, (const void*) msg, SSMP_CACHE_LINE_SIZE);
   _mm_mfence();
+
+#elif defined(NIAGARA) /* --------------------------------------- niagara */
+  while (tmpm->state != BUF_EMPTY)
+    {
+      _mm_pause();
+    }
+
+  tmpm->w0 = msg->w0;
+  tmpm->w1 = msg->w1;
+  tmpm->w2 = msg->w2;
+  tmpm->state = BUF_MESSG;
 #endif
 }
 
