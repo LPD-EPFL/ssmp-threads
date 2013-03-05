@@ -8,15 +8,17 @@ then
 fi
 
 num_msgs=100000;
-reps=5;
+reps=2;
 
 if [ $(uname -n) = "lpd48core" ];
 then
-    base_core=0;
     num_cores=48;
-else
-    base_core=1;
-    other_cores="10 40 80"
+elif [ $(uname -n) = "diassrv8" ];
+then
+    num_cores=80;
+elif [ $(uname -n) = "smal1.sics.se" ];
+then
+    num_cores=36;
 fi
 
 run_avg=$(find -name "run_avg.sh");
@@ -32,5 +34,4 @@ do
     printf "%-6.0f\n" $roundtrip
 
 done;
-
 

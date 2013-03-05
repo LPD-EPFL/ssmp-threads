@@ -6,6 +6,8 @@
 #include <assert.h>
 #include "measurements.h"
 
+#define CAST_LLU(v) (long long unsigned int) (v)
+
 typedef struct abs_deviation
 {
   uint64_t num_vals;

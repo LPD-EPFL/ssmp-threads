@@ -18,23 +18,26 @@
 
 #include "common.h"
 #include "ssmp.h"
-#include "ssmp_recv.h"
-#include "ssmp_send.h"
 #include "measurements.h"
 #include "pfd.h"
-
 
 #define ROUNDTRIP_
 #define DEBUG_
 
 uint32_t nm = 1000000;
-uint8_t dsl_seq[64];
+uint8_t dsl_seq[80];
 uint8_t num_procs = 2;
 uint8_t ID;
 uint8_t num_dsl = 0;
 uint8_t num_app = 0;
 uint8_t dsl_per_core = 2;
 uint32_t delay_after = 0;
+
+int 
+color_all(int id)
+{
+  return 1;
+}
 
 int 
 color_dsl(int id)
@@ -67,6 +70,14 @@ color_app1(int id)
 int 
 main(int argc, char **argv) 
 {
+  /* before doing any allocations */
+#if defined(__tile__)
+  if (tmc_cpus_get_my_affinity(&cpus) != 0)
+    {
+      tmc_task_die("Failure in 'tmc_cpus_get_my_affinity()'.");
+    }
+#endif
+
   if (argc > 1) 
     {
       num_procs = atoi(argv[1]);
@@ -88,15 +99,13 @@ main(int argc, char **argv)
 
   ID = 0;
 
+  printf("processes: %-10d / msgs: %10lld\n", num_procs, nm);
+  printf("Delay after each message: %u\n", delay_after);
 #if defined(ROUNDTRIP)
   PRINT("ROUNTRIP");
 #else
   PRINT("ONEWAY");
 #endif  /* ROUNDTRIP */
-  printf("NUM of processes: %d\n", num_procs);
-  printf("NUM of msgs: %u\n", nm);
-  printf("Delay after each message: %u\n", delay_after);
-
 
   uint8_t i, dsl_seq_idx = 0;;
   for (i = 0; i < num_procs; i++)
@@ -118,6 +127,10 @@ main(int argc, char **argv)
 
   ssmp_barrier_init(2, 0, color_dsl);
   ssmp_barrier_init(1, 0, color_app1);
+#if defined(XEON)
+  ssmp_barrier_init(0, 0, color_all);
+  ssmp_barrier_init(5, 0, color_all);
+#endif
 
   uint8_t rank;
   for (rank = 1; rank < num_procs; rank++) 
@@ -134,15 +147,17 @@ main(int argc, char **argv)
 
  fork_done:
   ID = rank;
+
   set_cpu(id_to_core[ID]);
   ssmp_mem_init(ID, num_procs);
 
   ssmp_color_buf_t *cbuf = NULL;
-  if (color_dsl(ID)) {
-    cbuf = (ssmp_color_buf_t *) malloc(sizeof(ssmp_color_buf_t));
-    assert(cbuf != NULL);
-    ssmp_color_buf_init(cbuf, color_app1);
-  }
+  if (color_dsl(ID)) 
+    {
+      cbuf = (ssmp_color_buf_t *) malloc(sizeof(ssmp_color_buf_t));
+      assert(cbuf != NULL);
+      ssmp_color_buf_init(cbuf, color_app1);
+    }
 
   ssmp_msg_t *msg;
   msg = (ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
@@ -156,24 +171,23 @@ main(int argc, char **argv)
   uint32_t num_zeros = num_app;
   uint32_t lim_zeros = num_dsl;
 
-  PFDINIT((num_app/num_dsl)*nm + 96);
+  /* PFDINIT((num_app/num_dsl)*nm + 96); */
 
   ticks t_start = 0, t_end = 0;
 
   ssmp_barrier_wait(0);
-
   /* ********************************************************************************
      main functionality
   *********************************************************************************/
 
   if (color_dsl(ID)) 
     {
+      ssmp_barrier_wait(0);
+
       while(1) 
 	{
-	  /* PF_START(0); */
 	  ssmp_recv_color_start(cbuf, msg);
-	  /* PF_STOP(0); */
-	  //	  PF_START(1);
+
 #if defined(ROUNDTRIP)
 	  ssmp_send(msg->sender, msg);
 #endif  /* ROUNDTRIP */
@@ -192,40 +206,76 @@ main(int argc, char **argv)
       unsigned int to = 0, to_idx = 0;
       long long int nm1 = nm;
 
-      ssmp_barrier_wait(1);
+      ssmp_barrier_wait(0);
 
       t_start = getticks();
-      while (nm1--)
+
+#if defined(NIAGARA) || defined(TILERA)
+      if (ID == 1)
 	{
-	  msg->w0 = nm1;
-	  PF_START(1);
-	  ssmp_send(to, msg);
+#endif
+	  while (nm1--)
+	    {
+	      msg->w0 = nm1;
+
+	      PF_START(1);
+	      ssmp_send(to, msg);
 #if !defined(ROUNDTRIP)
-	  PF_STOP(1);
+	      PF_STOP(1);
 #endif 
+
 #if defined(ROUNDTRIP)
-	  /* PF_START(0); */
-	  ssmp_recv_from(to, msg);
-	  /* PF_STOP(0); */
-	  PF_STOP(1);	
+	      ssmp_recv_from(to, msg);
+	      PF_STOP(1);	
 #endif  /* ROUNDTRIP */
 
-	  to = dsl_seq[to_idx++];
-	  if (to_idx == num_dsl)
-	    {
-	      to_idx = 0;
-	    }
+	      to = dsl_seq[to_idx++];
+	      if (to_idx == num_dsl)
+		{
+		  to_idx = 0;
+		}
 
-	  if (msg->w0 != nm1) 
-	    {
-	      P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
-	    }
+	      if (msg->w0 != nm1) 
+		{
+		  P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
+		}
 
-	  if (delay_after > 0)
-	    {
-	      wait_cycles(delay_after);
+	      if (delay_after > 0)
+		{
+		  wait_cycles(delay_after);
+		}
 	    }
+#if defined(NIAGARA) || defined(TILERA)
 	}
+      else
+	{
+	  while (nm1--)
+	    {
+	      msg->w0 = nm1;
+	      ssmp_send(to, msg);
+
+#if defined(ROUNDTRIP)
+	      ssmp_recv_from(to, msg);
+#endif  /* ROUNDTRIP */
+
+	      to = dsl_seq[to_idx++];
+	      if (to_idx == num_dsl)
+		{
+		  to_idx = 0;
+		}
+
+	      if (msg->w0 != nm1) 
+		{
+		  P("Ping-pong failed: sent %lld, recved %d", nm1, msg->w0);
+		}
+
+	      if (delay_after > 0)
+		{
+		  wait_cycles(delay_after);
+		}
+	    }
+	}      
+#endif
       t_end = getticks();
     }
 
@@ -254,6 +304,7 @@ main(int argc, char **argv)
 #if defined(DEBUG)
 	      PRINT("Completed in %10f secs | Througput: %f", dur, througput);
 #endif
+
 	      memcpy(msg, &througput, sizeof(double));
 	      ssmp_send(0, msg);
 	    }
@@ -268,7 +319,7 @@ main(int argc, char **argv)
       ssmp_barrier_wait(0);
     }
 
-  ssmp_barrier_wait(5);
+  ssmp_barrier_wait(0);
   if (ssmp_id() == 0)
     {
       PRINT("Total throughput: %f", total_throughput);
@@ -276,3 +327,4 @@ main(int argc, char **argv)
   ssmp_term();
   return 0;
 }
+

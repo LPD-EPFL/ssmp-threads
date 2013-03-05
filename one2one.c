@@ -18,8 +18,6 @@
 
 #include "common.h"
 #include "ssmp.h"
-#include "ssmp_send.h"
-#include "ssmp_recv.h"
 
 #include "measurements.h"
 #include "pfd.h"
@@ -55,13 +53,25 @@ barrier_wait(uint32_t* barrier)
     }
 }
 
-#define USE_INLINE_
-
 int
 main(int argc, char **argv) 
 {
+  /* before doing any allocations */
+#if defined(__tile__)
+  if (tmc_cpus_get_my_affinity(&cpus) != 0)
+    {
+      tmc_task_die("Failure in 'tmc_cpus_get_my_affinity()'.");
+    }
+#endif
+
+  on = id_to_core[0];
   if (argc > 3) 
     {
+      uint32_t c;
+      for (c = 3; c < argc; c++)
+	{
+	  id_to_core[c - 3] = atoi(argv[c]);
+	}
       on = atoi(argv[3 + ID]);
       P("placed on core %d", on);
     }
@@ -77,7 +87,13 @@ main(int argc, char **argv)
     }
 
   ID = 0;
-  printf("processes: %-10d / msgs: %10d\n", num_procs, nm);
+  printf("processes: %-10d / msgs: %10lld\n", num_procs, nm);
+#if defined(ROUNDTRIP)
+  PRINT("ROUNTRIP");
+#else
+  PRINT("ONEWAY");
+#endif  /* ROUNDTRIP */
+
 
   getticks_correction = getticks_correction_calc();
 
@@ -100,7 +116,11 @@ main(int argc, char **argv)
 
  fork_done:
   ID = rank;
-  uint32_t on = ID;
+  uint32_t on = id_to_core[ID];
+
+#if defined(TILERA)
+  tmc_cmem_init(0);		/*   initialize shared memory */
+#endif  /* TILERA */
 
   if (argc > 3)
     {
@@ -113,8 +133,10 @@ main(int argc, char **argv)
     }
   else
     {
-      set_cpu(ID);
+      set_cpu(on);
     }
+  id_to_core[ID] = on;
+
   ssmp_mem_init(ID, num_procs);
   /* P("Initialized child %u", rank); */
 
@@ -131,12 +153,6 @@ main(int argc, char **argv)
 
   /* PFDINIT(nm); */
 
-  uint32_t wc = 0;
-  if (argc > 5)
-    {
-      wc = atoi(argv[5]);
-    }
-
   ssmp_barrier_wait(0);
 
   /********************************************************************************* 
@@ -152,15 +168,13 @@ main(int argc, char **argv)
 
     while(1) 
       {
-	/* PF_START(0); */
 	ssmp_recv_from(from, msgp);
-	/* PF_STOP(0); */
 
 #if defined(ROUNTRIP)
-	/* PF_START(1); */
 	ssmp_send(from, msgp);
-	/* PF_STOP(1); */
-	wait_cycles(128);
+/* #  if !defined(NIAGARA) && !defined(TILERA) */
+/* 	wait_cycles(128); */
+/* #  endif */
 #endif
 
 	if (msgp->w0 == out) 
@@ -189,8 +203,6 @@ main(int argc, char **argv)
 #if !defined(ROUNTRIP)
 	  PF_STOP(1);
 #endif
-
-	  /* wait_cycles(1024); */
 
 #if defined(ROUNTRIP)
 	  /* PF_START(0); */

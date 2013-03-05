@@ -1,15 +1,21 @@
 #!/bin/sh
 
 num_msgs=10000000;
-reps=10;
+reps=3;
 
 if [ $(uname -n) = "lpd48core" ];
 then
     base_core=0;
     other_cores="1 6 12 18";
-else
+elif [ $(uname -n) = "diassrv8" ];
+then
     base_core=1;
-    other_cores="10 40 80"
+    other_cores="2 11 31"
+elif [ $(uname -n) = "smal1.sics.se" ];
+then
+    num_msgs=1000000;
+    base_core=0;
+    other_cores="1 35"
 fi
 
 run_avg=$(find -name "run_avg.sh");
