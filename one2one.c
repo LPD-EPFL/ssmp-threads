@@ -88,6 +88,12 @@ main(int argc, char **argv)
 
   ID = 0;
   printf("processes: %-10d / msgs: %10lld\n", num_procs, nm);
+#if defined(ROUNDTRIP)
+  PRINT("ROUNTRIP");
+#else
+  PRINT("ONEWAY");
+#endif  /* ROUNDTRIP */
+
 
   getticks_correction = getticks_correction_calc();
 
@@ -166,9 +172,9 @@ main(int argc, char **argv)
 
 #if defined(ROUNTRIP)
 	ssmp_send(from, msgp);
-#  if !defined(NIAGARA) && !defined(TILERA)
-	wait_cycles(128);
-#  endif
+/* #  if !defined(NIAGARA) && !defined(TILERA) */
+/* 	wait_cycles(128); */
+/* #  endif */
 #endif
 
 	if (msgp->w0 == out) 

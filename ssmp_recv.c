@@ -28,8 +28,7 @@ void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg)
 
   while(tmpm->state != BUF_MESSG) 
     {
-      _mm_pause_rep(wted++);
-      asm("");
+      _mm_pause_rep(wted++ & 63);
       PREFETCHW(tmpm);
     }
 #  endif
@@ -150,6 +149,7 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 #elif defined(OPTERON)
   volatile uint32_t** cbuf_state = cbuf->buf_state;
   volatile ssmp_msg_t** buf = cbuf->buf;
+  uint32_t num_ues = cbuf->num_ues;
 
   while(1) 
     {

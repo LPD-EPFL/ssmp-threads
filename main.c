@@ -99,15 +99,13 @@ main(int argc, char **argv)
 
   ID = 0;
 
+  printf("processes: %-10d / msgs: %10lld\n", num_procs, nm);
+  printf("Delay after each message: %u\n", delay_after);
 #if defined(ROUNDTRIP)
   PRINT("ROUNTRIP");
 #else
   PRINT("ONEWAY");
 #endif  /* ROUNDTRIP */
-  printf("NUM of processes: %d\n", num_procs);
-  printf("NUM of msgs: %u\n", nm);
-  printf("Delay after each message: %u\n", delay_after);
-
 
   uint8_t i, dsl_seq_idx = 0;;
   for (i = 0; i < num_procs; i++)

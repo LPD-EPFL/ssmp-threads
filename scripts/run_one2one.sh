@@ -1,7 +1,7 @@
 #!/bin/sh
 
 num_msgs=10000000;
-reps=10;
+reps=3;
 
 if [ $(uname -n) = "lpd48core" ];
 then

@@ -57,13 +57,20 @@ endif
 
 VER_FLAGS+=-D$(PLATFORM)
 
-default: one2one main
+default: one2one main main_rt one2one_rt
 
 main:	libssmp.a main.o common.h
 	$(CC) $(VER_FLAGS) -o main main.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 main.o:	main.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c main.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+main_rt: libssmp.a main_rt.o common.h
+	$(CC) $(VER_FLAGS) -o main_rt main_rt.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+main_rt.o: main.c
+	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -DROUNDTRIP -o main_rt.o -c main.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
 
 bank:	libssmp.a bank.o common.h
 	$(CC) $(VER_FLAGS) -o bank bank.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
@@ -105,6 +112,13 @@ one2one: libssmp.a one2one.o common.h measurements.o pfd.o
 
 one2one.o:	one2one.c ssmp.c
 		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+one2one_rt: libssmp.a one2one_rt.o common.h measurements.o pfd.o
+	$(CC) $(VER_FLAGS) -o one2one_rt one2one_rt.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+one2one_rt.o:	one2one.c ssmp.c
+		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -DROUNDTRIP -o one2one_rt.o -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
 
 cas_stresh: libssmp.a cas_stresh.o common.h
 	$(CC) $(VER_FLAGS) -o cas_stresh cas_stresh.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
