@@ -1,7 +1,7 @@
 #!/bin/sh
 
-num_msgs=1000000;
-reps=2;
+num_msgs=10000;
+reps=5;
 
 if [ $(uname -n) = "lpd48core" ];
 then
@@ -10,6 +10,9 @@ elif [ $(uname -n) = "diassrv8" ];
 then
     num_cores=80;
 elif [ $(uname -n) = "smal1.sics.se" ];
+then
+    num_cores=36;
+elif [ $(uname -n) = "parsasrv1.epfl.ch" ];
 then
     num_cores=36;
 fi

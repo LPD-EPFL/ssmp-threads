@@ -16,6 +16,11 @@ then
     num_msgs=1000000;
     base_core=0;
     other_cores="1 35"
+elif [ $(uname -n) = "parsasrv1.epfl.ch" ];
+then
+    num_msgs=1000000;
+    base_core=0;
+    other_cores="1 35"
 fi
 
 run_avg=$(find -name "run_avg.sh");
