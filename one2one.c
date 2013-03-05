@@ -53,11 +53,17 @@ barrier_wait(uint32_t* barrier)
     }
 }
 
-#define USE_INLINE_
-
 int
 main(int argc, char **argv) 
 {
+  /* before doing any allocations */
+#if defined(__tile__)
+  if (tmc_cpus_get_my_affinity(&cpus) != 0)
+    {
+      tmc_task_die("Failure in 'tmc_cpus_get_my_affinity()'.");
+    }
+#endif
+
   on = id_to_core[0];
   if (argc > 3) 
     {
@@ -106,6 +112,10 @@ main(int argc, char **argv)
   ID = rank;
   uint32_t on = id_to_core[ID];
 
+#if defined(TILERA)
+  tmc_cmem_init(0);		/*   initialize shared memory */
+#endif  /* TILERA */
+
   if (argc > 3)
     {
       if (ID > 0) 
@@ -152,14 +162,10 @@ main(int argc, char **argv)
 
     while(1) 
       {
-	/* PF_START(0); */
 	ssmp_recv_from(from, msgp);
-	/* PF_STOP(0); */
 
 #if defined(ROUNTRIP)
-	/* PF_START(1); */
 	ssmp_send(from, msgp);
-	/* PF_STOP(1); */
 #  if !defined(NIAGARA)
 	wait_cycles(128);
 #  endif

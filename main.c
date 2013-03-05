@@ -70,6 +70,14 @@ color_app1(int id)
 int 
 main(int argc, char **argv) 
 {
+  /* before doing any allocations */
+#if defined(__tile__)
+  if (tmc_cpus_get_my_affinity(&cpus) != 0)
+    {
+      tmc_task_die("Failure in 'tmc_cpus_get_my_affinity()'.");
+    }
+#endif
+
   if (argc > 1) 
     {
       num_procs = atoi(argv[1]);

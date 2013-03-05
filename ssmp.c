@@ -3,8 +3,8 @@
 //#define SSMP_DEBUG
 
 
-#if defined(OPTERON)
-const uint8_t id_to_core[] =
+#if defined(OPTERON) || defined(TILERA)
+uint8_t id_to_core[] =
   {
     0, 1, 2, 3, 4, 5,
     6, 7, 8, 9, 10, 11,
@@ -29,7 +29,7 @@ uint8_t id_to_core[] =
     31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
   };
 
-const uint8_t id_to_node[] =
+uint8_t id_to_node[] =
   {
     4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
@@ -73,17 +73,23 @@ uint8_t id_to_core[] =
 /* library variables */
 /* ------------------------------------------------------------------------------- */
 
-static ssmp_msg_t *ssmp_mem;
-volatile ssmp_msg_t **ssmp_recv_buf;
-volatile ssmp_msg_t **ssmp_send_buf;
-static ssmp_chunk_t *ssmp_chunk_mem;
-ssmp_chunk_t **ssmp_chunk_buf;
 int ssmp_num_ues_;
 int ssmp_id_;
 int last_recv_from;
 ssmp_barrier_t *ssmp_barrier;
 int *ues_initialized;
 static uint32_t ssmp_my_core;
+
+#if defined(__tile__)
+DynamicHeader *udn_header; //headers for messaging
+cpu_set_t cpus;
+#else
+static ssmp_msg_t *ssmp_mem;
+volatile ssmp_msg_t **ssmp_recv_buf;
+volatile ssmp_msg_t **ssmp_send_buf;
+static ssmp_chunk_t *ssmp_chunk_mem;
+ssmp_chunk_t **ssmp_chunk_buf;
+#endif
 
 
 /* ------------------------------------------------------------------------------- */
@@ -209,7 +215,73 @@ void ssmp_term()
 }
 
 
-#else
+#elif defined(TILERA)
+
+void
+ssmp_init(int num_procs)
+{
+  //initialize shared memory
+  tmc_cmem_init(0);
+
+  // Reserve the UDN rectangle that surrounds our cpus.
+  if (tmc_udn_init(&cpus) < 0)
+    tmc_task_die("Failure in 'tmc_udn_init(0)'.");
+
+  ssmp_barrier = (tmc_sync_barrier_t *) tmc_cmem_calloc(SSMP_NUM_BARRIERS, sizeof (tmc_sync_barrier_t));
+  if (ssmp_barrier == NULL)
+    {
+      tmc_task_die("Failure in allocating mem for barriers");
+    }
+
+  uint32_t b;
+  for (b = 0; b < num_procs; b++)
+    {
+      tmc_sync_barrier_init(ssmp_barrier + b, num_procs);
+    }
+
+  if (tmc_cpus_count(&cpus) < num_procs)
+    {
+      tmc_task_die("Insufficient cpus (%d < %d).", tmc_cpus_count(&cpus), num_procs);
+    }
+
+  tmc_task_watch_forked_children(1);
+
+}
+
+void ssmp_mem_init(int id, int num_ues) 
+{  
+  ssmp_id_ = id;
+  ssmp_num_ues_ = num_ues;
+
+  // Now that we're bound to a core, attach to our UDN rectangle.
+  if (tmc_udn_activate() < 0)
+    tmc_task_die("Failure in 'tmc_udn_activate()'.");
+
+  udn_header = (DynamicHeader *) malloc(num_ues * sizeof (DynamicHeader));
+
+  if (udn_header == NULL)
+    {
+      tmc_task_die("Failure in allocating dynamic headers");
+    }
+
+  int r;
+  for (r = 0; r < num_ues; r++)
+    {
+      int _cpu = tmc_cpus_find_nth_cpu(&cpus, r);
+      DynamicHeader header = tmc_udn_header_from_cpu(_cpu);
+      udn_header[r] = header;
+    }
+
+}
+
+void ssmp_term() 
+{
+}
+
+/* ---------------------------------------------------------------------------------------- */
+#else  /* x86  ---------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------------------------- */
+
 
 void ssmp_init(int num_procs)
 {
@@ -411,7 +483,9 @@ ssmp_term()
 /* color-based initialization fucntions */
 /* ------------------------------------------------------------------------------- */
 
-void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int)) {
+void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int))
+{
+#if !defined(TILERA)
   if (cbuf == NULL) {
     cbuf = (ssmp_color_buf_t *) malloc(sizeof(ssmp_color_buf_t));
     if (cbuf == NULL) {
@@ -509,7 +583,9 @@ void ssmp_color_buf_init(ssmp_color_buf_t *cbuf, int (*color)(int)) {
     }
 
   free(participants);
+#endif	/* !tilera */
 }
+
 
 inline void ssmp_color_buf_free(ssmp_color_buf_t *cbuf) {
   free(cbuf->buf);
@@ -543,19 +619,37 @@ inline void ssmp_barrier_init(int barrier_num, long long int participants, int (
     return;
   }
 
+#if defined(__tile__)
+  uint32_t n, num_part = 0;
+  for (n = 0; n < ssmp_num_ues_; n++)
+    {
+      if (color(n))
+	{
+	  num_part++;
+	}
+    }
+
+    tmc_sync_barrier_init(ssmp_barrier + barrier_num, num_part);
+
+#else
   ssmp_barrier[barrier_num].participants = 0xFFFFFFFFFFFFFFFF;
   ssmp_barrier[barrier_num].color = color;
   ssmp_barrier[barrier_num].ticket = 0;
   ssmp_barrier[barrier_num].cleared = 0;
+  #endif
 }
 
 void 
 ssmp_barrier_wait(int barrier_num) 
 {
-  if (barrier_num >= SSMP_NUM_BARRIERS) {
-    return;
-  }
+  if (barrier_num >= SSMP_NUM_BARRIERS)
+    {
+      return;
+    }
 
+#if defined(__tile__)
+  tmc_sync_barrier_wait(ssmp_barrier + barrier_num);
+#else
   _mm_sfence();
   _mm_lfence();
   ssmp_barrier_t *b = &ssmp_barrier[barrier_num];
@@ -625,6 +719,7 @@ ssmp_barrier_wait(int barrier_num)
 
   _mm_mfence();
   PD("<<Cleared barrier %d (v: %d)", barrier_num, version);
+#endif
 }
 
 /* ------------------------------------------------------------------------------- */
@@ -677,11 +772,21 @@ _mm_pause_rep(uint32_t num_reps)
 void
 set_cpu(int cpu) 
 {
+  ssmp_my_core = cpu;
 #ifdef __sparc__
   processor_bind(P_LWPID,P_MYID, cpu, NULL);
-#else  /* !SPARC */
-  ssmp_my_core = cpu;
+#elif defined(__tile__)
+    if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, cpu)) < 0)
+    {
+      tmc_task_die("Failure in 'tmc_cpus_set_my_cpu()'.");
+    }
 
+  if (cpu != tmc_cpus_get_my_cpu())
+    {
+      PRINT("******* i am not CPU %d", tmc_cpus_get_my_cpu());
+    }
+
+#else
   cpu_set_t mask;
   CPU_ZERO(&mask);
   CPU_SET(cpu, &mask);
@@ -724,6 +829,12 @@ inline ticks getticks()
   ticks ret;
   __asm__ __volatile__ ("rd %%tick, %0" : "=r" (ret) : "0" (ret));
   return ret;
+}
+#elif defined(__tile__)
+#include <arch/cycle.h>
+inline ticks getticks()
+{
+  return get_cycle_count();
 }
 #endif
 

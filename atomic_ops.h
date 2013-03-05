@@ -28,41 +28,95 @@ uint8_t oldval;
     return oldval;
 }
 
-#  define CAS_PTR(a,b,c) atomic_cas_ptr(a,b,c)
-#  define CAS_U8(a,b,c) atomic_cas_8(a,b,c)
-#  define CAS_U16(a,b,c) atomic_cas_16(a,b,c)
-#  define CAS_U32(a,b,c) atomic_cas_32(a,b,c)
-#  define CAS_U64(a,b,c) atomic_cas_64(a,b,c)
-#  define SWAP_PTR(a,b) atomic_swap_ptr(a,b)
-#  define SWAP_U8(a,b) atomic_swap_8(a,b)
-#  define SWAP_U16(a,b) atomic_swap_16(a,b)
-#  define SWAP_U32(a,b) atomic_swap_32(a,b)
-#  define SWAP_U64(a,b) atomic_swap_64(a,b)
-#  define FAI_U8(a) atomic_inc_8_nv(a)-1
-#  define FAI_U16(a) atomic_inc_16_nv(a)-1
-#  define FAI_U32(a) atomic_inc_32_nv(a)-1
-#  define FAI_U64(a) atomic_inc_64_nv(a)-1
-#  define FAD_U8(a) atomic_dec_8_nv(a,)+1
-#  define FAD_U16(a) atomic_dec_16_nv(a)+1
-#  define FAD_U32(a) atomic_dec_32_nv(a)+1
-#  define FAD_U64(a) atomic_dec_64_nv(a)+1
-#  define IAF_U8(a) atomic_inc_8_nv(a)
-#  define IAF_U16(a) atomic_inc_16_nv(a)
-#  define IAF_U32(a) atomic_inc_32_nv(a)
-#  define IAF_U64(a) atomic_inc_64_nv(a)
-#  define DAF_U8(a) atomic_dec_8_nv(a)
-#  define DAF_U16(a) atomic_dec_16_nv(a)
-#  define DAF_U32(a) atomic_dec_32_nv(a)
-#  define DAF_U64(a) atomic_dec_64_nv(a)
-#  define TAS_U8(a) tas_uint8(a)
-#  define MEM_BARRIER 
-/* #  define PAUSE asm volatile ("rd %%ccr %%g0") */
-#  define PAUSE    asm volatile("rd    %%ccr, %%g0\n\t" \
-                    ::: "memory")
- 
-//#define PAUSE
-
+//Compare-and-swap
+#define CAS_PTR(a,b,c) atomic_cas_ptr(a,b,c)
+#define CAS_U8(a,b,c) atomic_cas_8(a,b,c)
+#define CAS_U16(a,b,c) atomic_cas_16(a,b,c)
+#define CAS_U32(a,b,c) atomic_cas_32(a,b,c)
+#define CAS_U64(a,b,c) atomic_cas_64(a,b,c)
+//Swap
+#define SWAP_PTR(a,b) atomic_swap_ptr(a,b)
+#define SWAP_U8(a,b) atomic_swap_8(a,b)
+#define SWAP_U16(a,b) atomic_swap_16(a,b)
+#define SWAP_U32(a,b) atomic_swap_32(a,b)
+#define SWAP_U64(a,b) atomic_swap_64(a,b)
+//Fetch-and-increment
+#define FAI_U8(a) (atomic_inc_8_nv(a)-1)
+#define FAI_U16(a) (atomic_inc_16_nv(a)-1)
+#define FAI_U32(a) (atomic_inc_32_nv(a)-1)
+#define FAI_U64(a) (atomic_inc_64_nv(a)-1)
+//Fetch-and-decrement
+#define FAD_U8(a) (atomic_dec_8_nv(a,)+1)
+#define FAD_U16(a) (atomic_dec_16_nv(a)+1)
+#define FAD_U32(a) (atomic_dec_32_nv(a)+1)
+#define FAD_U64(a) (atomic_dec_64_nv(a)+1)
+//Increment-and-fetch
+#define IAF_U8(a) atomic_inc_8_nv(a)
+#define IAF_U16(a) atomic_inc_16_nv(a)
+#define IAF_U32(a) atomic_inc_32_nv(a)
+#define IAF_U64(a) atomic_inc_64_nv(a)
+//Decrement-and-fetch
+#define DAF_U8(a) atomic_dec_8_nv(a)
+#define DAF_U16(a) atomic_dec_16_nv(a)
+#define DAF_U32(a) atomic_dec_32_nv(a)
+#define DAF_U64(a) atomic_dec_64_nv(a)
+//Test-and-set
+#define TAS_U8(a) tas_uint8(a)
+//Memory barrier
+#define MEM_BARRIER asm volatile("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore"); 
 //end of sparc code
+#elif defined(__tile__)
+/*
+ *  Tilera code
+ */
+#include <arch/atomic.h>
+#include <arch/cycle.h>
+//atomic operations interface
+//Compare-and-swap
+#define CAS_PTR(a,b,c) arch_atomic_val_compare_and_exchange(a,b,c)
+#define CAS_U8(a,b,c)  arch_atomic_val_compare_and_exchange(a,b,c)
+#define CAS_U16(a,b,c) arch_atomic_val_compare_and_exchange(a,b,c)
+#define CAS_U32(a,b,c) arch_atomic_val_compare_and_exchange(a,b,c)
+#define CAS_U64(a,b,c) arch_atomic_val_compare_and_exchange(a,b,c)
+//Swap
+#define SWAP_PTR(a,b) arch_atomic_exchange(a,b)
+#define SWAP_U8(a,b) arch_atomic_exchange(a,b)
+#define SWAP_U16(a,b) arch_atomic_exchange(a,b)
+#define SWAP_U32(a,b) arch_atomic_exchange(a,b)
+#define SWAP_U64(a,b) arch_atomic_exchange(a,b)
+//Fetch-and-increment
+#define FAI_U8(a) arch_atomic_increment(a)
+#define FAI_U16(a) arch_atomic_increment(a)
+#define FAI_U32(a) arch_atomic_increment(a)
+#define FAI_U64(a) arch_atomic_increment(a)
+//Fetch-and-decrement
+#define FAD_U8(a) arch_atomic_decrement(a)
+#define FAD_U16(a) arch_atomic_decrement(a)
+#define FAD_U32(a) arch_atomic_decrement(a)
+#define FAD_U64(a) arch_atomic_decrement(a)
+//Increment-and-fetch
+#define IAF_U8(a) (arch_atomic_increment(a)+1)
+#define IAF_U16(a) (arch_atomic_increment(a)+1)
+#define IAF_U32(a) (arch_atomic_increment(a)+1)
+#define IAF_U64(a) (arch_atomic_increment(a)+1)
+//Decrement-and-fetch
+#define DAF_U8(a) (arch_atomic_decrement(a)-1)
+#define DAF_U16(a) (arch_atomic_decrement(a)-1)
+#define DAF_U32(a) (arch_atomic_decrement(a)-1)
+#define DAF_U64(a) (arch_atomic_decrement(a)-1)
+//Test-and-set
+#define TAS_U8(a) arch_atomic_val_compare_and_exchange(a,0,0xff)
+//Memory barrier
+#define MEM_BARRIER arch_atomic_full_barrier()
+#define _mm_lfence() arch_atomic_read_barrier()
+#define _mm_sfence() arch_atomic_write_barrier()
+#define _mm_mfence() arch_atomic_full_barrier()
+#define _mm_pause() cycle_relax()
+
+//Relax CPU
+//define PAUSE cycle_relax()
+
+//end of tilera code
 #else
 /*
  *  x86 code
@@ -139,50 +193,48 @@ uint8_t oldval;
 }
 
 //atomic operations interface
-#  define CAS_PTR(a,b,c) __sync_val_compare_and_swap(a,b,c)
-#  define CAS_U8(a,b,c) __sync_val_compare_and_swap(a,b,c)
-#  define CAS_U16(a,b,c) __sync_val_compare_and_swap(a,b,c)
-#  define CAS_U32(a,b,c) __sync_val_compare_and_swap(a,b,c)
-#  define CAS_U64(a,b,c) __sync_val_compare_and_swap(a,b,c)
-#  define SWAP_PTR(a,b) swap_pointer(a,b)
-#  define SWAP_U8(a,b) swap_uint8(a,b)
-#  define SWAP_U16(a,b) swap_uint16(a,b)
-#  define SWAP_U32(a,b) swap_uint32(a,b)
-#  define SWAP_U64(a,b) swap_uint64(a,b)
-#  define FAI_U8(a) __sync_fetch_and_add(a,1)
-#  define FAI_U16(a) __sync_fetch_and_add(a,1)
-#  define FAI_U32(a) __sync_fetch_and_add(a,1)
-#  define FAI_U64(a) __sync_fetch_and_add(a,1)
-#  define FAD_U8(a) __sync_fetch_and_sub(a,1)
-#  define FAD_U16(a) __sync_fetch_and_sub(a,1)
-#  define FAD_U32(a) __sync_fetch_and_sub(a,1)
-#  define FAD_U64(a) __sync_fetch_and_sub(a,1)
-#  define IAF_U8(a) __sync_add_and_fetch(a,1)
-#  define IAF_U16(a) __sync_add_and_fetch(a,1)
-#  define IAF_U32(a) __sync_add_and_fetch(a,1)
-#  define IAF_U64(a) __sync_add_and_fetch(a,1)
-#  define DAF_U8(a) __sync_sub_and_fetch(a,1)
-#  define DAF_U16(a) __sync_sub_and_fetch(a,1)
-#  define DAF_U32(a) __sync_sub_and_fetch(a,1)
-#  define DAF_U64(a) __sync_sub_and_fetch(a,1)
-#  define TAS_U8(a) tas_uint8(a)
-#  define MEM_BARRIER __sync_synchronize()
-#  define PAUSE _mm_pause()
+//Compare-and-swap
+#define CAS_PTR(a,b,c) __sync_val_compare_and_swap(a,b,c)
+#define CAS_U8(a,b,c) __sync_val_compare_and_swap(a,b,c)
+#define CAS_U16(a,b,c) __sync_val_compare_and_swap(a,b,c)
+#define CAS_U32(a,b,c) __sync_val_compare_and_swap(a,b,c)
+#define CAS_U64(a,b,c) __sync_val_compare_and_swap(a,b,c)
+//Swap
+#define SWAP_PTR(a,b) swap_pointer(a,b)
+#define SWAP_U8(a,b) swap_uint8(a,b)
+#define SWAP_U16(a,b) swap_uint16(a,b)
+#define SWAP_U32(a,b) swap_uint32(a,b)
+#define SWAP_U64(a,b) swap_uint64(a,b)
+//Fetch-and-increment
+#define FAI_U8(a) __sync_fetch_and_add(a,1)
+#define FAI_U16(a) __sync_fetch_and_add(a,1)
+#define FAI_U32(a) __sync_fetch_and_add(a,1)
+#define FAI_U64(a) __sync_fetch_and_add(a,1)
+//Fetch-and-decrement
+#define FAD_U8(a) __sync_fetch_and_sub(a,1)
+#define FAD_U16(a) __sync_fetch_and_sub(a,1)
+#define FAD_U32(a) __sync_fetch_and_sub(a,1)
+#define FAD_U64(a) __sync_fetch_and_sub(a,1)
+//Increment-and-fetch
+#define IAF_U8(a) __sync_add_and_fetch(a,1)
+#define IAF_U16(a) __sync_add_and_fetch(a,1)
+#define IAF_U32(a) __sync_add_and_fetch(a,1)
+#define IAF_U64(a) __sync_add_and_fetch(a,1)
+//Decrement-and-fetch
+#define DAF_U8(a) __sync_sub_and_fetch(a,1)
+#define DAF_U16(a) __sync_sub_and_fetch(a,1)
+#define DAF_U32(a) __sync_sub_and_fetch(a,1)
+#define DAF_U64(a) __sync_sub_and_fetch(a,1)
+//Test-and-set
+#define TAS_U8(a) tas_uint8(a)
+//Memory barrier
+#define MEM_BARRIER __sync_synchronize()
+//Relax CPU
+//#define PAUSE _mm_pause()
 
 /*End of x86 code*/
 #endif
 
-  static inline void
-  pause_rep(uint32_t num_reps)
-  {
-    uint32_t i;
-    for (i = 0; i < num_reps; i++)
-      {
-	PAUSE;
-	/* PAUSE; */
-	/* asm volatile ("NOP"); */
-      }
-  }
 
 #endif
 

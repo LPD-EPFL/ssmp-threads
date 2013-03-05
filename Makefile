@@ -24,7 +24,7 @@ endif
 ifeq ($(UNAME), parsasrv1.epfl.ch)
 PLATFORM=TILERA
 CC=tile-gcc
-PERF_CLFAGS= -ltmc
+PERF_CLFAGS+=-ltmc
 LINK=-ltmc
 endif
 
@@ -36,7 +36,7 @@ CC=/opt/csw/bin/gcc -m32 -mcpu=v9 -mtune=v9
 endif
 else
 DEBUG_CFLAGS=-Wall
-PERF_CLFAGS= -O3 #-O0 -g
+PERF_CLFAGS+=-O3 #-O0 -g
 endif
 
 ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
@@ -81,7 +81,7 @@ MEASUREMENTS_FILES += measurements.o pfd.o
 endif
 
 measurements.o: measurements.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c measurements.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
+	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c measurements.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 pfd.o: pfd.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c pfd.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)	

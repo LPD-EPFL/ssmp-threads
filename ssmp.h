@@ -19,6 +19,15 @@
 #  include <sys/types.h>
 #  include <sys/processor.h>
 #  include <sys/procset.h>
+#elif defined(__tile__)
+#  include <tmc/alloc.h>
+#  include <tmc/cpus.h>
+#  include <tmc/task.h>
+#  include <tmc/udn.h>
+#  include <tmc/spin.h>
+#  include <tmc/sync.h>
+#  include <tmc/cmem.h>
+#  include <arch/cycle.h> 
 #endif /* __sparc */
 
 #ifdef PLATFORM_NUMA
@@ -67,6 +76,13 @@ extern const uint8_t node_to_node_hops[8][8];
 #define _mm_mfence() __asm__ __volatile__("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore");
 #define _mm_lfence() __asm__ __volatile__("membar #LoadLoad | #LoadStore");
 #define _mm_sfence() __asm__ __volatile__("membar #StoreLoad | #StoreStore");
+#elif defined(__tile__)
+#define PREFETCHW(x) 
+#define PREFETCH(x) 
+#define PREFETCHNTA(x) 
+#define PREFETCHT0(x) 
+#define PREFETCHT1(x) 
+#define PREFETCHT2(x) 
 #else  /* !__sparc__ */
 #define PREFETCHW(x) asm volatile("prefetchw %0" :: "m" (*(unsigned long *)x)) /* write */
 #define PREFETCH(x) asm volatile("prefetch %0" :: "m" (*(unsigned long *)x)) /* read */
@@ -150,6 +166,9 @@ typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_color_buf_struct
 } ssmp_color_buf_t;
 
 
+#if defined(__tile__)
+typedef tmc_sync_barrier_t ssmp_barrier_t;
+#else
 /*barrier type*/
 typedef struct 
 {
@@ -158,9 +177,19 @@ typedef struct
   uint32_t ticket;
   uint32_t cleared;
 } ssmp_barrier_t;
+#endif
 
 volatile extern ssmp_msg_t **ssmp_recv_buf;
 volatile extern ssmp_msg_t **ssmp_send_buf;
+
+#if defined(TILERA)
+extern cpu_set_t cpus;
+#  if defined(__tilepro__)
+#  define SSMP_MSG_NUM_WORDS 16
+#  else
+#  define SSMP_MSG_NUM_WORDS 1
+#  endif
+#endif
 
 /* ------------------------------------------------------------------------------- */
 /* init / term the MP system */

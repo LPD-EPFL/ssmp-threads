@@ -7,6 +7,10 @@ extern int ssmp_num_ues_;
 extern int ssmp_id_;
 extern int last_recv_from;
 extern ssmp_barrier_t *ssmp_barrier;
+#if defined(__tile__)
+extern DynamicHeader *udn_header; //headers for messaging
+#endif
+
 
 /* ------------------------------------------------------------------------------- */
 /* sending functions : default is blocking */
@@ -16,9 +20,8 @@ extern ssmp_barrier_t *ssmp_barrier;
 inline 
 void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg) 
 {
-  volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
-  
 #if defined(OPTERON) /* --------------------------------------- opteron */
+  volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
 #  ifdef USE_ATOMIC
   while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_LOCKD)) 
     {
@@ -38,7 +41,7 @@ void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg)
   memcpy((void*) tmpm, (const void*) msg, SSMP_CACHE_LINE_SIZE);
 
 #elif defined(XEON) /* --------------------------------------- xeon */
-
+  volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
   if (!ssmp_cores_on_same_socket(ssmp_id_, to))
     {
       while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_LOCKD)) 
@@ -59,6 +62,7 @@ void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg)
   _mm_mfence();
 
 #elif defined(NIAGARA) /* --------------------------------------- niagara */
+  volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
   while (tmpm->state != BUF_EMPTY)
     {
       _mm_pause();
@@ -68,9 +72,14 @@ void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg)
   tmpm->w1 = msg->w1;
   tmpm->w2 = msg->w2;
   tmpm->state = BUF_MESSG;
+#elif defined(TILERA) /* --------------------------------------- niagara */
+  msg->sender = ssmp_id_;
+  tmc_udn_send_buffer(udn_header[to], UDN0_DEMUX_TAG, (void*) msg, SSMP_MSG_NUM_WORDS);
 #endif
 }
 
+
+#if !defined(TILERA)
   inline 
     void ssmp_send_big(int to, void *data, size_t length) 
   {
@@ -99,3 +108,4 @@ void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg)
 
     PD("sent to %d", to);
   }
+#endif

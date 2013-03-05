@@ -15,9 +15,9 @@ extern ssmp_barrier_t *ssmp_barrier;
 inline 
 void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg) 
 {
-  volatile ssmp_msg_t* tmpm = ssmp_recv_buf[from];
 
 #if defined(OPTERON) /* --------------------------------------- opteron */
+  volatile ssmp_msg_t* tmpm = ssmp_recv_buf[from];
 #  ifdef USE_ATOMIC
   while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_MESSG, BUF_LOCKD)) {
     wait_cycles(WAIT_TIME);
@@ -37,7 +37,7 @@ void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg)
   tmpm->state = BUF_EMPTY;
 
 #elif defined(XEON) /* --------------------------------------- xeon */
-
+  volatile ssmp_msg_t* tmpm = ssmp_recv_buf[from];
   if (!ssmp_cores_on_same_socket(ssmp_id_, from))
     {
       while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_MESSG, BUF_LOCKD)) 
@@ -60,7 +60,7 @@ void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg)
     _mm_mfence();
 
 #elif defined(NIAGARA)  /* --------------------------------------- niagara */
-
+  volatile ssmp_msg_t* tmpm = ssmp_recv_buf[from];
   while(tmpm->state != BUF_MESSG) 
     {
       _mm_pause();
@@ -70,39 +70,45 @@ void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg)
   msg->w1 = tmpm->w1;
   msg->w2 = tmpm->w2;
   tmpm->state = BUF_EMPTY;
+#elif defined(TILERA)  /* --------------------------------------- tilera */
+  tmc_udn0_receive_buffer((void*) msg, SSMP_MSG_NUM_WORDS);
 #endif
     }
 
 
-  inline void 
-  ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
-  {
-    uint32_t from;
-    uint32_t num_ues = cbuf->num_ues;
-    volatile uint32_t** cbuf_state = cbuf->buf_state;
+inline void 
+ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
+{
+#if !defined(TILERA)
+  uint32_t from;
+  uint32_t num_ues = cbuf->num_ues;
+  volatile uint32_t** cbuf_state = cbuf->buf_state;
 
-    while(1)
-      {
-	for (from = 0; from < num_ues; from++) 
-	  {
-	    if (
+  while(1)
+    {
+      for (from = 0; from < num_ues; from++) 
+	{
+	  if (
 #ifdef USE_ATOMIC
-		__sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD)
+	      __sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD)
 #else
-		*cbuf_state[from] == BUF_MESSG
+	      *cbuf_state[from] == BUF_MESSG
 #endif
-		)
-	      {
-		volatile ssmp_msg_t* tmpm = cbuf->buf[from];
-		memcpy((void*) msg, (const void*) tmpm, SSMP_CACHE_LINE_SIZE);
-		msg->sender = cbuf->from[from];
+	      )
+	    {
+	      volatile ssmp_msg_t* tmpm = cbuf->buf[from];
+	      memcpy((void*) msg, (const void*) tmpm, SSMP_CACHE_LINE_SIZE);
+	      msg->sender = cbuf->from[from];
 
-		tmpm->state = BUF_EMPTY;
-		return;
-	      }
-	  }
-      }
-  }
+	      tmpm->state = BUF_EMPTY;
+	      return;
+	    }
+	}
+    }
+#else
+  tmc_udn0_receive_buffer((void*) msg, SSMP_MSG_NUM_WORDS);
+#endif
+}
 
 
 static uint32_t start_recv_from = 0; /* keeping from which core to start the recv from next */
@@ -193,6 +199,9 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 			{
 			  start_recv_from = 0;
 			}
+
+#elif defined(TILERA)
+		      {		    
 #endif
 		      return;
 		    }
@@ -201,8 +210,11 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 	    }
 	}
 
-      inline 
-	void ssmp_recv_from_big(int from, void *data, size_t length) 
+      
+
+#if !defined(TILERA)
+inline 
+  void ssmp_recv_from_big(int from, void *data, size_t length) 
       {
 	int last_chunk = length % SSMP_CHUNK_SIZE;
 	int num_chunks = length / SSMP_CHUNK_SIZE;
@@ -229,4 +241,5 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 
 	PD("recved from %d\n", from);
       }
-
+      
+#endif
