@@ -28,6 +28,14 @@ PERF_CLFAGS+=-ltmc
 LINK=-ltmc
 endif
 
+ifeq ($(UNAME), smal1.sics.se)
+PLATFORM=TILERA
+CC=tile-gcc
+PERF_CLFAGS+=-ltmc
+LINK=-ltmc
+endif
+
+
 ifeq ($(P),0) #give P=0 to compile with debug info
 DEBUG_CFLAGS=-ggdb -Wall -g -fno-inline
 PERF_CLFAGS+= 

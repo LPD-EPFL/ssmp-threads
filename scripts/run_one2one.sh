@@ -11,6 +11,11 @@ elif [ $(uname -n) = "diassrv8" ];
 then
     base_core=1;
     other_cores="2 11 31"
+elif [ $(uname -n) = "smal1.sics.se" ];
+then
+    num_msgs=1000000;
+    base_core=0;
+    other_cores="1 35"
 fi
 
 run_avg=$(find -name "run_avg.sh");

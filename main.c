@@ -184,9 +184,12 @@ main(int argc, char **argv)
 
   if (color_dsl(ID)) 
     {
+      ssmp_barrier_wait(0);
+
       while(1) 
 	{
 	  ssmp_recv_color_start(cbuf, msg);
+
 #if defined(ROUNDTRIP)
 	  ssmp_send(msg->sender, msg);
 #endif  /* ROUNDTRIP */
@@ -205,22 +208,24 @@ main(int argc, char **argv)
       unsigned int to = 0, to_idx = 0;
       long long int nm1 = nm;
 
-      ssmp_barrier_wait(1);
+      ssmp_barrier_wait(0);
 
       t_start = getticks();
 
-#if defined(NIAGARA)
+#if defined(NIAGARA) || defined(TILERA)
       if (ID == 1)
 	{
 #endif
 	  while (nm1--)
 	    {
 	      msg->w0 = nm1;
+
 	      PF_START(1);
 	      ssmp_send(to, msg);
 #if !defined(ROUNDTRIP)
 	      PF_STOP(1);
 #endif 
+
 #if defined(ROUNDTRIP)
 	      ssmp_recv_from(to, msg);
 	      PF_STOP(1);	
@@ -242,7 +247,7 @@ main(int argc, char **argv)
 		  wait_cycles(delay_after);
 		}
 	    }
-#if defined(NIAGARA)
+#if defined(NIAGARA) || defined(TILERA)
 	}
       else
 	{
@@ -313,7 +318,7 @@ main(int argc, char **argv)
 	  /* PRINT("recved th from %02d : %f", c, througput); */
 	  total_throughput += througput;
 	}
-      ssmp_barrier_wait(5);
+      ssmp_barrier_wait(0);
     }
 
   ssmp_barrier_wait(0);
@@ -324,3 +329,4 @@ main(int argc, char **argv)
   ssmp_term();
   return 0;
 }
+

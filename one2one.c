@@ -166,7 +166,7 @@ main(int argc, char **argv)
 
 #if defined(ROUNTRIP)
 	ssmp_send(from, msgp);
-#  if !defined(NIAGARA)
+#  if !defined(NIAGARA) && !defined(TILERA)
 	wait_cycles(128);
 #  endif
 #endif
@@ -197,8 +197,6 @@ main(int argc, char **argv)
 #if !defined(ROUNTRIP)
 	  PF_STOP(1);
 #endif
-
-	  /* wait_cycles(1024); */
 
 #if defined(ROUNTRIP)
 	  /* PF_START(0); */

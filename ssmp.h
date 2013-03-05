@@ -187,7 +187,7 @@ extern cpu_set_t cpus;
 #  if defined(__tilepro__)
 #  define SSMP_MSG_NUM_WORDS 16
 #  else
-#  define SSMP_MSG_NUM_WORDS 1
+#  define SSMP_MSG_NUM_WORDS 8
 #  endif
 #endif
 

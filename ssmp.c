@@ -99,6 +99,7 @@ ssmp_chunk_t **ssmp_chunk_buf;
 #if defined(NIAGARA)
 void ssmp_init(int num_procs)
 {
+
   //create the shared space which will be managed by the allocator
   uint32_t sizem, sizeb, sizeckp, sizeui, sizecnk, size;;
 
@@ -220,6 +221,8 @@ void ssmp_term()
 void
 ssmp_init(int num_procs)
 {
+  ssmp_num_ues_ = num_procs;
+
   //initialize shared memory
   tmc_cmem_init(0);
 
@@ -267,7 +270,7 @@ void ssmp_mem_init(int id, int num_ues)
   int r;
   for (r = 0; r < num_ues; r++)
     {
-      int _cpu = tmc_cpus_find_nth_cpu(&cpus, r);
+      int _cpu = tmc_cpus_find_nth_cpu(&cpus, id_to_core[r]);
       DynamicHeader header = tmc_udn_header_from_cpu(_cpu);
       udn_header[r] = header;
     }
