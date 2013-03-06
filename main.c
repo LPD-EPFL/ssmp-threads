@@ -184,6 +184,7 @@ main(int argc, char **argv)
     {
       ssmp_barrier_wait(0);
 
+      PF_START(2);
       while(1) 
 	{
 	  ssmp_recv_color_start(cbuf, msg);
@@ -200,6 +201,8 @@ main(int argc, char **argv)
 	      }
 	  }
 	}
+      PF_STOP(2);
+      total_samples[2] = nm / num_dsl;
     }
   else 
     {
@@ -218,15 +221,10 @@ main(int argc, char **argv)
 	    {
 	      msg->w0 = nm1;
 
-	      PF_START(1);
 	      ssmp_send(to, msg);
-#if !defined(ROUNDTRIP)
-	      PF_STOP(1);
-#endif 
 
 #if defined(ROUNDTRIP)
 	      ssmp_recv_from(to, msg);
-	      PF_STOP(1);	
 #endif  /* ROUNDTRIP */
 
 	      to = dsl_seq[to_idx++];

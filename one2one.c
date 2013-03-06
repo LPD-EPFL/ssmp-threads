@@ -166,15 +166,16 @@ main(int argc, char **argv)
     uint32_t expected = 0;
 
 
+    PF_START(0);
     while(1) 
       {
 	ssmp_recv_from(from, msgp);
 
 #if defined(ROUNDTRIP)
 	ssmp_send(from, msgp);
-/* #  if !defined(NIAGARA) && !defined(TILERA) */
-/* 	wait_cycles(128); */
-/* #  endif */
+	/* #  if !defined(NIAGARA) && !defined(TILERA) */
+	/* 	wait_cycles(128); */
+	/* #  endif */
 #endif
 
 	if (msgp->w0 == out) 
@@ -186,8 +187,10 @@ main(int argc, char **argv)
 	  {
 	    PRINT(" *** expected %5d, got %5d", expected, msgp->w0);
 	  }
-	idx++;
       }
+    PF_STOP(0);
+	
+    total_samples[0] = msgp->w0 + 1;
   }
   else 
     {
@@ -198,26 +201,15 @@ main(int argc, char **argv)
 	{
 	  msgp->w0 = nm1;
 
-	  PF_START(1);
 	  ssmp_send(to, msgp);
-#if !defined(ROUNDTRIP)
-	  PF_STOP(1);
-#endif
-
-	/* wait_cycles(128); */
 
 #if defined(ROUNDTRIP)
 	  ssmp_recv_from(to, msgp);
-	  PF_STOP(1);
 
 	  if (msgp->w0 != nm1)
 	    {
 	      PRINT(" *** expected %5d, got %5d", nm1, msgp->w0);
 	    }
-#else
-#if defined(__x86_64__)
-	wait_cycles(256);
-#endif
 #endif
 	}
     }
