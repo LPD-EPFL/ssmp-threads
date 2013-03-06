@@ -204,16 +204,20 @@ main(int argc, char **argv)
 	  PF_STOP(1);
 #endif
 
+	/* wait_cycles(128); */
+
 #if defined(ROUNDTRIP)
-	  /* PF_START(0); */
 	  ssmp_recv_from(to, msgp);
-	  /* PF_STOP(0); */
 	  PF_STOP(1);
 
 	  if (msgp->w0 != nm1)
 	    {
 	      PRINT(" *** expected %5d, got %5d", nm1, msgp->w0);
 	    }
+#else
+#if defined(__x86_64__)
+	wait_cycles(128);
+#endif
 #endif
 	}
     }
