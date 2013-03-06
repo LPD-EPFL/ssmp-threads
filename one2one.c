@@ -216,7 +216,7 @@ main(int argc, char **argv)
 	    }
 #else
 #if defined(__x86_64__)
-	wait_cycles(128);
+	wait_cycles(256);
 #endif
 #endif
 	}

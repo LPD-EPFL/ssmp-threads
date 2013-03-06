@@ -13,6 +13,7 @@ reps=3;
 if [ $(uname -n) = "lpd48core" ];
 then
     num_cores=48;
+    delay_after=128;
 elif [ $(uname -n) = "diassrv8" ];
 then
     num_cores=80;
