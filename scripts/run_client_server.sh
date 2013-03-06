@@ -7,17 +7,15 @@ then
     starting_num_cores=$1;
 fi
 
-num_msgs=100000;
-reps=3;
+num_msgs=500000;
+reps=2;
 
 if [ $(uname -n) = "lpd48core" ];
 then
     num_cores=48;
-    delay_after=128;
 elif [ $(uname -n) = "diassrv8" ];
 then
     num_cores=80;
-    delay_after=128;
 elif [ $(uname -n) = "smal1.sics.se" ];
 then
     num_cores=36;
