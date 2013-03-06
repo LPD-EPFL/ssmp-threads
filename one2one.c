@@ -22,7 +22,7 @@
 #include "measurements.h"
 #include "pfd.h"
 
-#define ROUNTRIP_
+#define ROUNDTRIP_
 
 int num_procs = 2;
 long long int nm = 10000000;
@@ -89,7 +89,7 @@ main(int argc, char **argv)
   ID = 0;
   printf("processes: %-10d / msgs: %10lld\n", num_procs, nm);
 #if defined(ROUNDTRIP)
-  PRINT("ROUNTRIP");
+  PRINT("ROUNDTRIP");
 #else
   PRINT("ONEWAY");
 #endif  /* ROUNDTRIP */
@@ -170,7 +170,7 @@ main(int argc, char **argv)
       {
 	ssmp_recv_from(from, msgp);
 
-#if defined(ROUNTRIP)
+#if defined(ROUNDTRIP)
 	ssmp_send(from, msgp);
 /* #  if !defined(NIAGARA) && !defined(TILERA) */
 /* 	wait_cycles(128); */
@@ -200,11 +200,11 @@ main(int argc, char **argv)
 
 	  PF_START(1);
 	  ssmp_send(to, msgp);
-#if !defined(ROUNTRIP)
+#if !defined(ROUNDTRIP)
 	  PF_STOP(1);
 #endif
 
-#if defined(ROUNTRIP)
+#if defined(ROUNDTRIP)
 	  /* PF_START(0); */
 	  ssmp_recv_from(to, msgp);
 	  /* PF_STOP(0); */

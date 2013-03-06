@@ -19,6 +19,9 @@ then
 elif [ $(uname -n) = "smal1.sics.se" ];
 then
     num_cores=36;
+elif [ $(uname -n) = "parsasrv1.epfl.ch" ];
+then
+    num_cores=36;
 fi
 
 run_avg=$(find -name "run_avg.sh");

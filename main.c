@@ -102,7 +102,7 @@ main(int argc, char **argv)
   printf("processes: %-10d / msgs: %10u\n", num_procs, nm);
   printf("Delay after each message: %u\n", delay_after);
 #if defined(ROUNDTRIP)
-  PRINT("ROUNTRIP");
+  PRINT("ROUNDTRIP");
 #else
   PRINT("ONEWAY");
 #endif  /* ROUNDTRIP */
