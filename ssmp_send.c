@@ -65,12 +65,10 @@ void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg)
   volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
   while (tmpm->state != BUF_EMPTY)
     {
-      _mm_pause();
+      ;
     }
 
-  tmpm->w0 = msg->w0;
-  tmpm->w1 = msg->w1;
-  tmpm->w2 = msg->w2;
+  memcpy64((volatile uint64_t*) tmpm, (const uint64_t*) msg, SSMP_CACHE_LINE_DW);
   tmpm->state = BUF_MESSG;
 #elif defined(TILERA) /* --------------------------------------- niagara */
   msg->sender = ssmp_id_;

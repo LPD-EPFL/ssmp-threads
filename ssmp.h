@@ -55,6 +55,7 @@ extern const uint8_t node_to_node_hops[8][8];
 
 #if defined(__sparc__)
 #  define SSMP_CACHE_LINE_SIZE 64
+#  define SSMP_CACHE_LINE_DW   7
 #else
 #  define SSMP_CACHE_LINE_SIZE 64
 #endif /* __sparc__ */
@@ -114,7 +115,7 @@ typedef uint32_t ssmp_chk_t; /*used for the checkpoints*/
 /*msg type: contains 15 words of data and 1 word flag*/
 typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg 
 {
-#if defined(__sparc__)
+#if defined(SPARC_SMALL_MSG)
   int32_t w0;
   int32_t w1;
   int32_t w2;
@@ -137,8 +138,13 @@ typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg
   int f[7];
   union 
   {
+#if defined(__sparc__)
+    volatile uint8_t state;
+    volatile uint8_t sender;
+#else
     volatile uint32_t state;
     volatile uint32_t sender;
+#endif
   };
 #endif	/* __sparc__ */
 } ssmp_msg_t;
@@ -302,5 +308,20 @@ xorshf96(unsigned long* x, unsigned long* y, unsigned long* z) {          //peri
 extern inline uint32_t ssmp_cores_on_same_socket(uint32_t core1, uint32_t core2);
 extern inline int ssmp_id();
 extern inline int ssmp_num_ues();
+
+#if defined(__sparc__)
+static inline void
+memcpy64(volatile uint64_t* dst, const uint64_t* src, const size_t dwords)
+{
+  uint32_t w;
+  for (w = 0; w < dwords; w++)
+    {
+      *dst++ = *src++;
+    }
+  /* _mm_mfence(); */
+}
+
+#endif
+
 
 #endif

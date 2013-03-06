@@ -44,35 +44,33 @@ void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg)
 	  wait_cycles(WAIT_TIME);
 	}
     }
-    else			/* same socket */
-      {
-	int32_t wted = 0;
-	while(tmpm->state != BUF_MESSG) 
-	  {
-	    _mm_pause_rep(wted++);
-	    _mm_mfence();
-	  }
-      }
+  else			/* same socket */
+    {
+      int32_t wted = 0;
+      while(tmpm->state != BUF_MESSG) 
+	{
+	  _mm_pause_rep(wted++);
+	  _mm_mfence();
+	}
+    }
   
-    memcpy((void*) msg, (const void*) tmpm, SSMP_CACHE_LINE_SIZE);
-    tmpm->state = BUF_EMPTY;
-    _mm_mfence();
+  memcpy((void*) msg, (const void*) tmpm, SSMP_CACHE_LINE_SIZE);
+  tmpm->state = BUF_EMPTY;
+  _mm_mfence();
 
 #elif defined(NIAGARA)  /* --------------------------------------- niagara */
   volatile ssmp_msg_t* tmpm = ssmp_recv_buf[from];
   while(tmpm->state != BUF_MESSG) 
     {
-      _mm_pause();
+      ;
     }
   
-  msg->w0 = tmpm->w0;
-  msg->w1 = tmpm->w1;
-  msg->w2 = tmpm->w2;
+  memcpy64((volatile uint64_t*) msg, (const uint64_t*) tmpm, SSMP_CACHE_LINE_DW);
   tmpm->state = BUF_EMPTY;
 #elif defined(TILERA)  /* --------------------------------------- tilera */
   tmc_udn0_receive_buffer((void*) msg, SSMP_MSG_NUM_WORDS);
 #endif
-    }
+}
 
 
 inline void 
@@ -127,13 +125,7 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 	    {
 	      volatile ssmp_msg_t* tmpm = cbuf->buf[start_recv_from];
 
-	      char* msg_c = (char*) msg;
-	      char* tmpm_c = (char*) tmpm;
-	      uint8_t c;
-	      for (c = 0; c < SSMP_CACHE_LINE_SIZE; c++)
-		{
-		  msg_c[c] = tmpm_c[c];
-		}
+	      memcpy64((volatile uint64_t*) msg, (const uint64_t*) tmpm, SSMP_CACHE_LINE_DW);
 	      tmpm->state = BUF_EMPTY;
 	      msg->sender = cbuf->from[start_recv_from];
 
