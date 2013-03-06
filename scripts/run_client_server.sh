@@ -22,6 +22,8 @@ then
 elif [ $(uname -n) = "parsasrv1.epfl.ch" ];
 then
     num_cores=36;
+    num_msgs=1000;
+    reps=1;
 fi
 
 run_avg=$(find -name "run_avg.sh");

@@ -6,6 +6,9 @@ shift;
 if [ $(uname -n) = "smal1.sics.se" ];
 then
     run=./run
+elif [ $(uname -n) = "parsasrv1.epfl.ch" ];
+then
+    run=./run
 fi
 
 
