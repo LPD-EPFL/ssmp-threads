@@ -18,7 +18,7 @@ extern "C" {
 #  if defined(OPTERON)
 #    define REF_SPEED_GHZ           2.1
 #  elif defined(XEON)
-#    error "Need to set REF_SPEED_GHZ for the platform"
+#    define REF_SPEED_GHZ           2.1
 #  elif defined(TILERA)
 #    define REF_SPEED_GHZ           1.2
 #  elif defined(NIAGARA)

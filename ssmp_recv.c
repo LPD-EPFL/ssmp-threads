@@ -184,8 +184,8 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 #elif defined(XEON) /* --------------------------------------- xeon */
   uint32_t have_msg = 0;
   volatile uint32_t** cbuf_state = cbuf->buf_state;
-  volatile ssmp_msg_t** buf = cbuf->buf;
-
+  uint32_t num_ues = cbuf->num_ues;
+  
   while(1) 
     {
       for (; start_recv_from < num_ues; start_recv_from++)

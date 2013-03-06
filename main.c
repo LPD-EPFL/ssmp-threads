@@ -99,7 +99,7 @@ main(int argc, char **argv)
 
   ID = 0;
 
-  printf("processes: %-10d / msgs: %10lld\n", num_procs, nm);
+  printf("processes: %-10d / msgs: %10u\n", num_procs, nm);
   printf("Delay after each message: %u\n", delay_after);
 #if defined(ROUNDTRIP)
   PRINT("ROUNTRIP");
