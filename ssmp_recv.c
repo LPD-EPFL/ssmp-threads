@@ -172,8 +172,8 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 		{
 		  start_recv_from = 0;
 		}
-	      PREFETCHW(ssmp_send_buf[msg->sender]);
-	      PREFETCHW(buf[start_recv_from]);
+	      /* PREFETCHW(ssmp_send_buf[msg->sender]); */
+	      /* PREFETCHW(buf[start_recv_from]); */
 
 	      return;
 	    }

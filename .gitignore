@@ -13,6 +13,7 @@
 /color_buf
 /color_buf_memcpy
 /core
+/events_all
 /l1_spil
 /main.S
 /mem
@@ -44,9 +45,12 @@
 /one2one_na
 /one2one_no_m
 /one2one_numa
+/one2one_pf
 /one2one_recv
 /one2one_rt
+/one2one_rt_pf
 /one2one_send
+/one2one_step
 /one2onen1
 /one2onenuma
 /one2oneo
