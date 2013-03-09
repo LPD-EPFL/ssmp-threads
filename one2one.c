@@ -167,9 +167,7 @@ main(int argc, char **argv)
 
     uint32_t from = ID+1;
     uint32_t out = nm-1;
-    uint32_t idx = 0; 
     uint32_t expected = 0;
-
 
     PF_START(0);
     while(1) 
@@ -213,7 +211,7 @@ main(int argc, char **argv)
 
 	  if (msgp->w0 != nm1)
 	    {
-	      PRINT(" *** expected %5d, got %5d", nm1, msgp->w0);
+	      PRINT(" *** expected %5lld, got %5d", nm1, msgp->w0);
 	    }
 #endif
 

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 reps=$1;
 shift;
