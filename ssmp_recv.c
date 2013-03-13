@@ -129,6 +129,7 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 	      tmpm->state = BUF_EMPTY;
 	      msg->sender = cbuf->from[start_recv_from];
 
+	      /* _mm_sfence(); */
 	      if (++start_recv_from == num_ues)
 		{
 		  start_recv_from = 0;

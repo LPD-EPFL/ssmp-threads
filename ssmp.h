@@ -16,6 +16,7 @@
 #include "atomic_ops.h"
 
 #ifdef __sparc__
+#define SPARC_SMALL_MSG
 #  include <sys/types.h>
 #  include <sys/processor.h>
 #  include <sys/procset.h>
@@ -54,8 +55,15 @@ extern const uint8_t node_to_node_hops[8][8];
 #define SSMP_CHUNK_SIZE 1020
 
 #if defined(__sparc__)
+#if defined(SPARC_SMALL_MSG)
+#  define SSMP_CACHE_LINE_SIZE 64
+#  define SSMP_CACHE_LINE_DW   2
+#  define SSMP_CACHE_LINE_W    15
+#else
 #  define SSMP_CACHE_LINE_SIZE 64
 #  define SSMP_CACHE_LINE_DW   7
+#  define SSMP_CACHE_LINE_W    63
+#endif
 #else
 #  define SSMP_CACHE_LINE_SIZE 64
 #endif /* __sparc__ */
@@ -113,13 +121,13 @@ extern const uint8_t node_to_node_hops[8][8];
 typedef uint32_t ssmp_chk_t; /*used for the checkpoints*/
 
 /*msg type: contains 15 words of data and 1 word flag*/
-typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg 
-{
 #if defined(SPARC_SMALL_MSG)
+typedef struct ALIGNED(64) ssmp_msg 
+{
   int32_t w0;
   int32_t w1;
   int32_t w2;
-
+  int32_t w3;
   uint8_t pad[3];
   union 
   {
@@ -127,6 +135,8 @@ typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg
     volatile uint8_t sender;
   };
 #else
+typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg 
+{
   int w0;
   int w1;
   int w2;
@@ -313,12 +323,25 @@ extern inline int ssmp_num_ues();
 static inline void
 memcpy64(volatile uint64_t* dst, const uint64_t* src, const size_t dwords)
 {
+#if defined(SPARC_SMALL_MSG)
+
+  /* uint32_t* dst32 = (uint32_t*) (dst); */
+  /* uint32_t* src32 = (uint32_t*) (src); */
+  /* uint8_t* dst8 = (uint8_t*) (dst); */
+  /* uint8_t* src8 = (uint8_t*) (dst); */
+
+  dst[0] = src[0];
+  dst[1] = src[1];
+  /* dst32[2] = src32[2]; */
+  /* dst8[12] = src8[12]; */
+#else
   uint32_t w;
   for (w = 0; w < dwords; w++)
     {
       *dst++ = *src++;
     }
-  /* _mm_mfence(); */
+  _mm_mfence();
+#endif
 }
 
 #endif
