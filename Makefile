@@ -113,6 +113,13 @@ one2one: libssmp.a one2one.o common.h measurements.o pfd.o
 one2one.o:	one2one.c ssmp.c
 		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
+one2one_step: libssmp.a one2one_step.o common.h measurements.o pfd.o
+	$(CC) $(VER_FLAGS) -o one2one_step one2one_step.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+one2one_step.o:	one2one_step.c ssmp.c
+		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c one2one_step.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+
 one2one_rt: libssmp.a one2one_rt.o common.h measurements.o pfd.o
 	$(CC) $(VER_FLAGS) -o one2one_rt one2one_rt.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 starting_num_cores=2;
 
@@ -22,18 +22,23 @@ then
 elif [ $(uname -n) = "parsasrv1.epfl.ch" ];
 then
     num_cores=36;
+    num_msgs=1000;
+    reps=1;
+elif [ $(uname -n) = "maglite" ];
+then
+    num_cores=64;
 fi
 
-run_avg=$(find -name "run_avg.sh");
+run_avg=$(find . -name "run_avg.sh");
 
 echo "#cores oneway roundtrip"
 
 for num_core in $(seq $starting_num_cores 1 $num_cores)
 do
     printf "%-8d" $num_core
-    oneway=$($run_avg $reps ./main $num_core $num_msgs $num_cores $delay_after | awk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
+    oneway=$($run_avg $reps ./main $num_core $num_msgs $num_cores $delay_after | gawk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
     printf "%-8.0f" $oneway;
-    roundtrip=$($run_avg $reps ./main_rt $num_core $num_msgs $num_cores | awk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
+    roundtrip=$($run_avg $reps ./main_rt $num_core $num_msgs $num_cores | gawk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
     printf "%-6.0f\n" $roundtrip
 
 done;

@@ -93,11 +93,7 @@ main(int argc, char **argv)
 
   ID = 0;
   printf("processes: %-10d / msgs: %10lld/ wait after: %u\n", num_procs, nm, wait_cycles_after);
-#if defined(ROUNDTRIP)
-  PRINT("ROUNDTRIP");
-#else
-  PRINT("ONEWAY");
-#endif  /* ROUNDTRIP */
+  PRINT("stepwise execution");
 
 
   getticks_correction = getticks_correction_calc();
@@ -167,19 +163,17 @@ main(int argc, char **argv)
 
     uint32_t from = ID+1;
     uint32_t out = nm-1;
+    uint32_t idx = 0; 
     uint32_t expected = 0;
 
-    PF_START(0);
     while(1) 
       {
-	ssmp_recv_from(from, msgp);
+	ssmp_barrier_wait(2);
+	ssmp_barrier_wait(3);
 
-#if defined(ROUNDTRIP)
-	ssmp_send(from, msgp);
-	/* #  if !defined(NIAGARA) && !defined(TILERA) */
-	/* 	wait_cycles(128); */
-	/* #  endif */
-#endif
+	PF_START(0);
+	ssmp_recv_from(from, msgp);
+	PF_STOP(0);
 
 	if (msgp->w0 == out) 
 	  {
@@ -191,7 +185,6 @@ main(int argc, char **argv)
 	    PRINT(" *** expected %5d, got %5d", expected, msgp->w0);
 	  }
       }
-    PF_STOP(0);
 	
     total_samples[0] = msgp->w0 + 1;
   }
@@ -204,16 +197,11 @@ main(int argc, char **argv)
 	{
 	  msgp->w0 = nm1;
 
-	  ssmp_send(to, msgp);
-
-#if defined(ROUNDTRIP)
-	  ssmp_recv_from(to, msgp);
-
-	  if (msgp->w0 != nm1)
-	    {
-	      PRINT(" *** expected %5lld, got %5d", nm1, msgp->w0);
-	    }
-#endif
+	ssmp_barrier_wait(2);
+	PF_START(1);
+	ssmp_send(to, msgp);
+	PF_STOP(1);
+	ssmp_barrier_wait(3);
 
 	  if (wait_cycles_after)
 	    {

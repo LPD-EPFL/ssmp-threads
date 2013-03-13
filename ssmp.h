@@ -16,10 +16,12 @@
 #include "atomic_ops.h"
 
 #ifdef __sparc__
+#  define SPARC_SMALL_MSG
 #  include <sys/types.h>
 #  include <sys/processor.h>
 #  include <sys/procset.h>
 #elif defined(__tile__)
+#  define TILE_SMALL_MSG
 #  include <tmc/alloc.h>
 #  include <tmc/cpus.h>
 #  include <tmc/task.h>
@@ -53,11 +55,23 @@ extern const uint8_t node_to_node_hops[8][8];
 #define SSMP_NUM_BARRIERS 16 /*number of available barriers*/
 #define SSMP_CHUNK_SIZE 1020
 
+#define SSMP_CACHE_LINE_SIZE 64
+
 #if defined(__sparc__)
-#  define SSMP_CACHE_LINE_SIZE 64
-#else
-#  define SSMP_CACHE_LINE_SIZE 64
-#endif /* __sparc__ */
+#  if defined(SPARC_SMALL_MSG)
+#    define SSMP_CACHE_LINE_DW   2
+#  else
+#    define SSMP_CACHE_LINE_DW   7
+#  endif
+#elif defined(__tilepro__)
+#  if defined(TILE_SMALL_MSG)
+#    define SSMP_CACHE_LINE_W   4
+#  else
+#    define SSMP_CACHE_LINE_SIZE 64
+#    define SSMP_CACHE_LINE_W    16
+#  endif
+#endif
+
 
 #define BUF_EMPTY 0
 #define BUF_MESSG 1
@@ -65,37 +79,37 @@ extern const uint8_t node_to_node_hops[8][8];
 
 
 #if defined(__sparc__)
-#define PREFETCHW(x) 
-#define PREFETCH(x) 
-#define PREFETCHNTA(x) 
-#define PREFETCHT0(x) 
-#define PREFETCHT1(x) 
-#define PREFETCHT2(x) 
+#  define PREFETCHW(x) 
+#  define PREFETCH(x) 
+#  define PREFETCHNTA(x) 
+#  define PREFETCHT0(x) 
+#  define PREFETCHT1(x) 
+#  define PREFETCHT2(x) 
 
-#define _mm_pause() PAUSE
-#define _mm_mfence() __asm__ __volatile__("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore");
-#define _mm_lfence() __asm__ __volatile__("membar #LoadLoad | #LoadStore");
-#define _mm_sfence() __asm__ __volatile__("membar #StoreLoad | #StoreStore");
+#  define _mm_pause() PAUSE
+#  define _mm_mfence() __asm__ __volatile__("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore");
+#  define _mm_lfence() __asm__ __volatile__("membar #LoadLoad | #LoadStore");
+#  define _mm_sfence() __asm__ __volatile__("membar #StoreLoad | #StoreStore");
 #elif defined(__tile__)
-#define PREFETCHW(x) 
-#define PREFETCH(x) 
-#define PREFETCHNTA(x) 
-#define PREFETCHT0(x) 
-#define PREFETCHT1(x) 
-#define PREFETCHT2(x) 
+#  define PREFETCHW(x) 
+#  define PREFETCH(x) 
+#  define PREFETCHNTA(x) 
+#  define PREFETCHT0(x) 
+#  define PREFETCHT1(x) 
+#  define PREFETCHT2(x) 
 #else  /* !__sparc__ */
-#define PREFETCHW(x) asm volatile("prefetchw %0" :: "m" (*(unsigned long *)x)) /* write */
-#define PREFETCH(x) asm volatile("prefetch %0" :: "m" (*(unsigned long *)x)) /* read */
-#define PREFETCHNTA(x) asm volatile("prefetchnta %0" :: "m" (*(unsigned long *)x)) /* non-temporal */
-#define PREFETCHT0(x) asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x)) /* all levels */
-#define PREFETCHT1(x) asm volatile("prefetcht1 %0" :: "m" (*(unsigned long *)x)) /* all but L1 */
-#define PREFETCHT2(x) asm volatile("prefetcht2 %0" :: "m" (*(unsigned long *)x)) /* all but L1 & L2 */
+#  define PREFETCHW(x) asm volatile("prefetchw %0" :: "m" (*(unsigned long *)x)) /* write */
+#  define PREFETCH(x) asm volatile("prefetch %0" :: "m" (*(unsigned long *)x)) /* read */
+#  define PREFETCHNTA(x) asm volatile("prefetchnta %0" :: "m" (*(unsigned long *)x)) /* non-temporal */
+#  define PREFETCHT0(x) asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x)) /* all levels */
+#  define PREFETCHT1(x) asm volatile("prefetcht1 %0" :: "m" (*(unsigned long *)x)) /* all but L1 */
+#  define PREFETCHT2(x) asm volatile("prefetcht2 %0" :: "m" (*(unsigned long *)x)) /* all but L1 & L2 */
 #endif /* !__sparc__ */
 #define SP(args...) printf("[%d] ", ssmp_id_); printf(args); printf("\n"); fflush(stdout)
 #ifdef SSMP_DEBUG
-#define PD(args...) printf("[%d] ", ssmp_id_); printf(args); printf("\n"); fflush(stdout)
+#  define PD(args...) printf("[%d] ", ssmp_id_); printf(args); printf("\n"); fflush(stdout)
 #else
-#define PD(args...) 
+#  define PD(args...) 
 #endif
 
 #ifndef ALIGNED
@@ -112,13 +126,25 @@ extern const uint8_t node_to_node_hops[8][8];
 typedef uint32_t ssmp_chk_t; /*used for the checkpoints*/
 
 /*msg type: contains 15 words of data and 1 word flag*/
-typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg 
+#if defined(SPARC_SMALL_MSG)
+typedef struct ALIGNED(64) ssmp_msg 
 {
-#if defined(__sparc__)
   int32_t w0;
   int32_t w1;
   int32_t w2;
-
+  int32_t w3;
+  uint8_t pad[3];
+  union 
+  {
+    volatile uint8_t state;
+    volatile uint8_t sender;
+  };
+#elif defined(TILE_SMALL_MSG)
+typedef struct ALIGNED(64) ssmp_msg 
+{
+  int32_t w0;
+  int32_t w1;
+  int32_t w2;
   uint8_t pad[3];
   union 
   {
@@ -126,6 +152,8 @@ typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg
     volatile uint8_t sender;
   };
 #else
+typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg 
+{
   int w0;
   int w1;
   int w2;
@@ -137,8 +165,13 @@ typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg
   int f[7];
   union 
   {
+#  if defined(__sparc__)
+    volatile uint8_t state;
+    volatile uint8_t sender;
+#  else
     volatile uint32_t state;
     volatile uint32_t sender;
+#  endif
   };
 #endif	/* __sparc__ */
 } ssmp_msg_t;
@@ -185,9 +218,9 @@ volatile extern ssmp_msg_t **ssmp_send_buf;
 #if defined(TILERA)
 extern cpu_set_t cpus;
 #  if defined(__tilepro__)
-#  define SSMP_MSG_NUM_WORDS 16
+#    define SSMP_MSG_NUM_WORDS 16
 #  else
-#  define SSMP_MSG_NUM_WORDS 8
+#    define SSMP_MSG_NUM_WORDS 8
 #  endif
 #endif
 
@@ -273,7 +306,7 @@ extern ticks getticks_correction_calc();
 /// of 2) for 32-bit numbers
 extern inline uint32_t pow2roundup (uint32_t x);
 
-    #define my_random xorshf96
+#define my_random xorshf96
 
 /* 
  * Returns a pseudo-random value in [1;range).
@@ -302,5 +335,33 @@ xorshf96(unsigned long* x, unsigned long* y, unsigned long* z) {          //peri
 extern inline uint32_t ssmp_cores_on_same_socket(uint32_t core1, uint32_t core2);
 extern inline int ssmp_id();
 extern inline int ssmp_num_ues();
+
+#if defined(__sparc__)
+static inline void
+memcpy64(volatile uint64_t* dst, const uint64_t* src, const size_t dwords)
+{
+#  if defined(SPARC_SMALL_MSG)
+
+  /* uint32_t* dst32 = (uint32_t*) (dst); */
+  /* uint32_t* src32 = (uint32_t*) (src); */
+  /* uint8_t* dst8 = (uint8_t*) (dst); */
+  /* uint8_t* src8 = (uint8_t*) (dst); */
+
+  dst[0] = src[0];
+  dst[1] = src[1];
+  /* dst32[2] = src32[2]; */
+  /* dst8[12] = src8[12]; */
+#  else
+  uint32_t w;
+  for (w = 0; w < dwords; w++)
+    {
+      *dst++ = *src++;
+    }
+  _mm_mfence();
+#  endif
+}
+
+#endif
+
 
 #endif
