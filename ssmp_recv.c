@@ -68,7 +68,7 @@ void ssmp_recv_from(uint32_t from, volatile ssmp_msg_t *msg)
   memcpy64((volatile uint64_t*) msg, (const uint64_t*) tmpm, SSMP_CACHE_LINE_DW);
   tmpm->state = BUF_EMPTY;
 #elif defined(TILERA)  /* --------------------------------------- tilera */
-  tmc_udn0_receive_buffer((void*) msg, SSMP_MSG_NUM_WORDS);
+  tmc_udn0_receive_buffer((void*) msg, SSMP_CACHE_LINE_W);
 #endif
 }
 
@@ -103,7 +103,7 @@ ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 	}
     }
 #else
-  tmc_udn0_receive_buffer((void*) msg, SSMP_MSG_NUM_WORDS);
+  tmc_udn0_receive_buffer((void*) msg, SSMP_CACHE_LINE_W);
 #endif
 }
 
@@ -217,7 +217,7 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
     }
 
 #elif defined(TILERA)
-  tmc_udn0_receive_buffer((void*) msg, SSMP_MSG_NUM_WORDS);
+  tmc_udn0_receive_buffer((void*) msg, SSMP_CACHE_LINE_W);
 #endif
 }
       

@@ -72,7 +72,7 @@ void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg)
   tmpm->state = BUF_MESSG;
 #elif defined(TILERA) /* --------------------------------------- niagara */
   msg->sender = ssmp_id_;
-  tmc_udn_send_buffer(udn_header[to], UDN0_DEMUX_TAG, (void*) msg, SSMP_MSG_NUM_WORDS);
+  tmc_udn_send_buffer(udn_header[to], UDN0_DEMUX_TAG, (void*) msg, SSMP_CACHE_LINE_W);
 #endif
 }
 
