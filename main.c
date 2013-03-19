@@ -32,6 +32,7 @@ uint8_t num_dsl = 0;
 uint8_t num_app = 0;
 uint8_t dsl_per_core = 2;
 uint32_t delay_after = 0;
+uint32_t delay_cs = 0;
 
 int 
 color_all(int id)
@@ -97,10 +98,17 @@ main(int argc, char **argv)
       delay_after = atoi(argv[4]);
     }
 
+  if (argc > 5)
+    {
+      delay_cs = atoi(argv[5]);
+    }
+
+
   ID = 0;
 
   printf("processes: %-10d / msgs: %10u\n", num_procs, nm);
   printf("Delay after each message: %u\n", delay_after);
+  printf("Delay after in the cs: %u\n", delay_cs);
 #if defined(ROUNDTRIP)
   PRINT("ROUNDTRIP");
 #else
@@ -188,6 +196,11 @@ main(int argc, char **argv)
       while(1) 
 	{
 	  ssmp_recv_color_start(cbuf, msg);
+
+	  if (delay_cs)
+	    {
+	      wait_cycles(delay_cs);
+	    }
 
 #if defined(ROUNDTRIP)
 	  ssmp_send(msg->sender, msg);
