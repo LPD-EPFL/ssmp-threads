@@ -1,5 +1,7 @@
 #!/bin/bash
 
+do_throughput=1;
+
 starting_num_cores=2;
 
 if [ $# -gt 0 ];
@@ -7,8 +9,8 @@ then
     starting_num_cores=$1;
 fi
 
-num_msgs=500000;
-reps=2;
+num_msgs=1000000;
+reps=5;
 
 if [ $(uname -n) = "lpd48core" ];
 then
@@ -31,15 +33,28 @@ fi
 
 run_avg=$(find . -name "run_avg.sh");
 
-echo "#cores oneway roundtrip"
+echo "#cores oneway           roundtrip"
 
 for num_core in $(seq $starting_num_cores 1 $num_cores)
 do
     printf "%-8d" $num_core
-    oneway=$($run_avg $reps ./main $num_core $num_msgs $num_cores $delay_after | gawk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
-    printf "%-8.0f" $oneway;
-    roundtrip=$($run_avg $reps ./main_rt $num_core $num_msgs $num_cores | gawk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
-    printf "%-6.0f\n" $roundtrip
+
+    if [ $do_throughput -eq 1 ];
+    then
+	oneway=$($run_avg $reps ./main $num_core $num_msgs $num_cores $delay_after | gawk '/through/ { print $4 }');
+    else
+	oneway=$($run_avg $reps ./main $num_core $num_msgs $num_cores $delay_after | gawk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
+
+    fi
+    printf "%-16.0f" $oneway;
+    if [ $do_throughput -eq 1 ];
+    then
+	roundtrip=$($run_avg $reps ./main_rt $num_core $num_msgs $num_cores | gawk '/through/ { print $4 }');
+    else
+	roundtrip=$($run_avg $reps ./main_rt $num_core $num_msgs $num_cores | gawk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
+    fi
+
+    printf "%-16.0f\n" $roundtrip;
 
 done;
 
