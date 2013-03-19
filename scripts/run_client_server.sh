@@ -10,7 +10,7 @@ then
 fi
 
 num_msgs=1000000;
-reps=5;
+reps=3;
 
 if [ $(uname -n) = "lpd48core" ];
 then
