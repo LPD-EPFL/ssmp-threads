@@ -86,11 +86,11 @@ ssmp_recv_color(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
       for (from = 0; from < num_ues; from++) 
 	{
 	  if (
-#ifdef USE_ATOMIC
+#  ifdef USE_ATOMIC
 	      __sync_bool_compare_and_swap(cbuf_state[from], BUF_MESSG, BUF_LOCKD)
-#else
+#  else
 	      *cbuf_state[from] == BUF_MESSG
-#endif
+#  endif
 	      )
 	    {
 	      volatile ssmp_msg_t* tmpm = cbuf->buf[from];
@@ -166,7 +166,7 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 		  start_recv_from = 0;
 		}
 	      PREFETCHW(ssmp_send_buf[msg->sender]);
-	      /* PREFETCHW(buf[start_recv_from]); */
+	      PREFETCHW(buf[start_recv_from]);
 
 	      return;
 	    }

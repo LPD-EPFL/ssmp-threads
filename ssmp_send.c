@@ -76,6 +76,30 @@ void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg)
 #endif
 }
 
+inline 
+void ssmp_send_no_sync(uint32_t to, volatile ssmp_msg_t *msg) 
+{
+#if defined(OPTERON) /* --------------------------------------- opteron */
+  volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
+  msg->state = BUF_MESSG;
+  memcpy((void*) tmpm, (const void*) msg, SSMP_CACHE_LINE_SIZE);
+
+#elif defined(XEON) /* --------------------------------------- xeon */
+  volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
+  msg->state = BUF_MESSG;
+  memcpy((void*) tmpm, (const void*) msg, SSMP_CACHE_LINE_SIZE);
+
+#elif defined(NIAGARA) /* --------------------------------------- niagara */
+  volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
+  memcpy64((volatile uint64_t*) tmpm, (const uint64_t*) msg, SSMP_CACHE_LINE_DW);
+  tmpm->state = BUF_MESSG;
+#elif defined(TILERA) /* --------------------------------------- niagara */
+  msg->sender = ssmp_id_;
+  tmc_udn_send_buffer(udn_header[to], UDN0_DEMUX_TAG, (void*) msg, SSMP_CACHE_LINE_W);
+#endif
+}
+
+
 
 #if !defined(TILERA)
   inline 

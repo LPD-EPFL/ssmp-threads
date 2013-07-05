@@ -23,6 +23,10 @@
 
 #define ROUNDTRIP_
 #define DEBUG_
+#define NO_SYNC_SRV
+#define NO_SYNC_APP
+
+
 
 uint32_t nm = 1000000;
 uint8_t dsl_seq[80];
@@ -203,7 +207,11 @@ main(int argc, char **argv)
 	    }
 
 #if defined(ROUNDTRIP)
+#  if defined(NO_SYNC_SRV)
+	  ssmp_send_no_sync(msg->sender, msg);
+#  else
 	  ssmp_send(msg->sender, msg);
+#  endif
 #endif  /* ROUNDTRIP */
 	  //	  PF_STOP(1);
 	  
@@ -234,7 +242,11 @@ main(int argc, char **argv)
 	    {
 	      msg->w0 = nm1;
 
+#if defined(NO_SYNC_APP)
+	      ssmp_send_no_sync(to, msg);
+#else
 	      ssmp_send(to, msg);
+#endif
 
 #if defined(ROUNDTRIP)
 	      ssmp_recv_from(to, msg);
@@ -265,9 +277,9 @@ main(int argc, char **argv)
 	      msg->w0 = nm1;
 	      ssmp_send(to, msg);
 
-#if defined(ROUNDTRIP)
+#  if defined(ROUNDTRIP)
 	      ssmp_recv_from(to, msg);
-#endif  /* ROUNDTRIP */
+#  endif  /* ROUNDTRIP */
 
 	      to = dsl_seq[to_idx++];
 	      if (to_idx == num_dsl)

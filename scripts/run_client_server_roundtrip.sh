@@ -1,6 +1,6 @@
 #!/bin/bash
 
-do_throughput=1;
+do_throughput=0;
 
 starting_num_cores=2;
 
@@ -9,7 +9,7 @@ then
     starting_num_cores=$1;
 fi
 
-num_msgs=10000;
+num_msgs=100000;
 reps=1;
 
 if [ $(uname -n) = "lpd48core" ];

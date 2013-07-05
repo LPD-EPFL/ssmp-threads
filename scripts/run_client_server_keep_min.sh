@@ -9,8 +9,8 @@ then
     starting_num_cores=$1;
 fi
 
-num_msgs=10000;
-reps=10;
+num_msgs=1000;
+reps=2;
 
 if [ $(uname -n) = "lpd48core" ];
 then

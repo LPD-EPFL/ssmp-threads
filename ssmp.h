@@ -242,6 +242,7 @@ extern void ssmp_term(void);
 /* blocking send length words to to */
 /* blocking in the sense that the data are copied to the receiver's buffer */
 extern inline void ssmp_send(uint32_t to, volatile ssmp_msg_t *msg);
+extern inline void ssmp_send_no_sync(uint32_t to, volatile ssmp_msg_t *msg);
 extern inline void ssmp_send_big(int to, void *data, size_t length);
 
 /* ------------------------------------------------------------------------------- */
