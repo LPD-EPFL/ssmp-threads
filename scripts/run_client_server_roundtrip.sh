@@ -31,6 +31,10 @@ then
     num_cores=64;
 fi
 
+
+# dsl_per_core=$num_cores;
+dsl_per_core=3;
+
 run_avg=$(find . -name "run_avg.sh");
 
 echo "#cores oneway           roundtrip"
@@ -41,17 +45,17 @@ do
 
 #     if [ $do_throughput -eq 1 ];
 #     then
-# 	oneway=$($run_avg $reps ./main $num_core $num_msgs $num_cores $delay_after | gawk '/through/ { sum+=$4; r++ } END {print sum/r}');
+# 	oneway=$($run_avg $reps ./main $num_core $num_msgs $dsl_per_core $delay_after | gawk '/through/ { sum+=$4; r++ } END {print sum/r}');
 #     else
-# 	oneway=$($run_avg $reps ./main $num_core $num_msgs $num_cores $delay_after | gawk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
+# 	oneway=$($run_avg $reps ./main $num_core $num_msgs $dsl_per_core $delay_after | gawk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
 
 #     fi
     printf "%-16.0f" $oneway;
     if [ $do_throughput -eq 1 ];
     then
-	roundtrip=$($run_avg $reps ./main_rt $num_core $num_msgs $num_cores | gawk '/through/ { sum+=$4; r++ } END {print sum/r}');
+	roundtrip=$($run_avg $reps ./main_rt $num_core $num_msgs $dsl_per_core | gawk '/through/ { sum+=$4; r++ } END {print sum/r}');
     else
-	roundtrip=$($run_avg $reps ./main_rt $num_core $num_msgs $num_cores | gawk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
+	roundtrip=$($run_avg $reps ./main_rt $num_core $num_msgs $dsl_per_core | gawk '/ticks/ { sum+=$18; r++ }; END {print sum/r}');
     fi
 
     printf "%-16.0f\n" $roundtrip;
