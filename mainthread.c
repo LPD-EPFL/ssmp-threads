@@ -1,14 +1,15 @@
 #include "ssmpthread.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "common.h"
 
-uint8_t ID;
 uint8_t num_threads = 2;
+__thread uint8_t ID;
 
 void *mainthread(void *args) {
-	set_thread(id_to_core[0]);
+	ID = *((int*)args);
+	set_thread(id_to_core[ID]);
 	/*ssmp_mem_init(ID, num_procs);*/
+	free(args);
 	pthread_exit(NULL);
 }
 
@@ -18,8 +19,9 @@ int main(int argc, char **argv) {
 	pthread_t threads[num_threads];
 	int rank;
 	for (rank = 0; rank < num_threads; rank++) {
-		if(0 > pthread_create(threads + rank, NULL, mainthread, NULL)) {
-			P("Failure in pthread():\n%s", strerror(errno));
+		void * args = malloc(sizeof(int));
+		*((int*)args) = rank;
+		if(0 > pthread_create(threads + rank, NULL, mainthread, args)) {
 			exit(3);
 		}
 	}
