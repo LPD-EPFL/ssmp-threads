@@ -221,35 +221,3 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 #endif
 }
       
-
-#if !defined(TILERA)
-	inline 
-	  void ssmp_recv_from_big(int from, void *data, size_t length) 
-	{
-	  int last_chunk = length % SSMP_CHUNK_SIZE;
-	  int num_chunks = length / SSMP_CHUNK_SIZE;
-
-	  while(num_chunks--) {
-
-	    while(!ssmp_chunk_buf[from]->state);
-
-	    memcpy(data, ssmp_chunk_buf[from], SSMP_CHUNK_SIZE);
-	    data = ((char *) data) + SSMP_CHUNK_SIZE;
-
-	    ssmp_chunk_buf[from]->state = 0;
-	  }
-
-	  if (!last_chunk) {
-	    return;
-	  }
-
-	  while(!ssmp_chunk_buf[from]->state);
-
-	  memcpy(data, ssmp_chunk_buf[from], last_chunk);
-
-	  ssmp_chunk_buf[from]->state = 0;
-
-	  PD("recved from %d\n", from);
-	}
-      
-#endif

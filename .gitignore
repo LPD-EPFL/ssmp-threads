@@ -100,3 +100,6 @@ one2one
 one2onebig
 oprof*
 perf*
+.project
+.cproject
+.externalToolBuilders/

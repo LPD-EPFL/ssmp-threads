@@ -99,35 +99,3 @@ void ssmp_send_no_sync(uint32_t to, volatile ssmp_msg_t *msg)
 #endif
 }
 
-
-
-#if !defined(TILERA)
-  inline 
-    void ssmp_send_big(int to, void *data, size_t length) 
-  {
-    int last_chunk = length % SSMP_CHUNK_SIZE;
-    int num_chunks = length / SSMP_CHUNK_SIZE;
-
-    while(num_chunks--) {
-
-      while(ssmp_chunk_buf[ssmp_id_]->state);
-
-      memcpy(ssmp_chunk_buf[ssmp_id_], data, SSMP_CHUNK_SIZE);
-      data = ((char *) data) + SSMP_CHUNK_SIZE;
-
-      ssmp_chunk_buf[ssmp_id_]->state = 1;
-    }
-
-    if (!last_chunk) {
-      return;
-    }
-
-    while(ssmp_chunk_buf[ssmp_id_]->state);
-
-    memcpy(ssmp_chunk_buf[ssmp_id_], data, last_chunk);
-
-    ssmp_chunk_buf[ssmp_id_]->state = 1;
-
-    PD("sent to %d", to);
-  }
-#endif

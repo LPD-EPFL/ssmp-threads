@@ -9,6 +9,12 @@ CC=gcc
 PLATFORM_NUMA=1
 endif
 
+ifeq ($(UNAME), david-HP-EliteBook-8440p)
+PLATFORM=local
+CC=gcc
+PLATFORM_NUMA=0
+endif
+
 ifeq ($(UNAME), diassrv8)
 PLATFORM=XEON
 CC=gcc
@@ -57,8 +63,15 @@ endif
 
 VER_FLAGS+=-D$(PLATFORM)
 
-default: one2one main main_rt one2one_rt
+default: one2one main main_rt one2one_rt mainthread
 
+#new files
+mainthread:	libssmp.a mainthread.o common.h
+	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+mainthread.o:	mainthread.c
+	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c mainthread.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+	
 main:	libssmp.a main.o common.h
 	$(CC) $(VER_FLAGS) -o main main.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
@@ -90,6 +103,15 @@ ssmp_recv.o: ssmp_send.c
 ssmp_broadcast.o: ssmp_broadcast.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmp_broadcast.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
+#New files
+ssmpthread.o: ssmpthread.c
+	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmpthread.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+ssmpthread_send.o: ssmpthread_send.c
+	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmpthread_send.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+
+ssmpthread_recv.o: ssmpthread_send.c
+	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmpthread_recv.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 ifeq ($(MEASUREMENTS),1)
 PERF_CLFAGS += -DDO_TIMINGS
 MEASUREMENTS_FILES += measurements.o pfd.o
@@ -102,9 +124,11 @@ pfd.o: pfd.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c pfd.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
 
 
-libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h $(MEASUREMENTS_FILES)
+libssmp.a: ssmpthread.o ssmpthread_send.o ssmpthread_recv.o ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h\
+	$(MEASUREMENTS_FILES)
 	@echo Archive name = libssmp.a
-	ar -r libssmp.a ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o $(MEASUREMENTS_FILES)
+	ar -r libssmp.a ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmpthread.o \
+		ssmpthread_send.o ssmpthread_recv.o $(MEASUREMENTS_FILES)
 	rm -f *.o	
 
 one2one: libssmp.a one2one.o common.h measurements.o pfd.o
