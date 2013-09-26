@@ -20,7 +20,7 @@ uint8_t id_to_core[] =
 /* ------------------------------------------------------------------------------- */
 /* library variables */
 /* ------------------------------------------------------------------------------- */
-
+ssmp_barrier_t *ssmp_barrier;
 __thread int ssmp_num_ues_;
 int ssmp_id_;
 __thread int *ues_initialized;
@@ -40,16 +40,15 @@ volatile ssmp_msg_t **ssmp_send_buf;
 /* x86  ---------------------------------------------------------------------------- */
 /* ---------------------------------------------------------------------------------------- */
 
-/*
-void ssmpthread_init(int num_threads)
-{
+
+void ssmpthread_init(int num_threads) {
   //create the shared space which will be managed by the allocator
   unsigned int sizeb, sizeckp, sizeui, sizecnk, size;;
 
   sizeb = SSMP_NUM_BARRIERS * sizeof(ssmp_barrier_t);
   sizeckp = 0;
   sizeui = num_threads * sizeof(int);
-  sizecnk = num_threads * sizeof(ssmp_chunk_t);
+  sizecnk = 0;//don't need ssmp_chunk_buf
   size = sizeb + sizeckp + sizeui + sizecnk;
 
   char keyF[100];
@@ -90,7 +89,6 @@ void ssmpthread_init(int num_threads)
   long long unsigned int mem_just_int = (long long unsigned int) ssmp_mem;
   ssmp_barrier = (ssmp_barrier_t *) (mem_just_int);
   ues_initialized = (int *) (mem_just_int + sizeb + sizeckp);
-  ssmp_chunk_mem = (ssmp_chunk_t *) (mem_just_int + sizeb + sizeckp + sizeui);
 
   int bar;
   for (bar = 0; bar < SSMP_NUM_BARRIERS; bar++) 
@@ -99,9 +97,9 @@ void ssmpthread_init(int num_threads)
     }
   ssmp_barrier_init(1, 0xFFFFFFFFFFFFFFFF, color_app);
 
-  _mm_mfence();
+  _mm_mfence();//maybe not usefull since we spawn threads afterwards
 }
-
+/*
 void ssmpthread_mem_init(int id, int num_ues)
 {  
   ssmp_id_ = id;
@@ -110,8 +108,7 @@ void ssmpthread_mem_init(int id, int num_ues)
 
   ssmp_recv_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
   ssmp_send_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
-  ssmp_chunk_buf = (ssmp_chunk_t **) malloc(num_ues * sizeof(ssmp_chunk_t *));
-  if (ssmp_recv_buf == NULL || ssmp_send_buf == NULL || ssmp_chunk_buf == NULL) {
+  if (ssmp_recv_buf == NULL || ssmp_send_buf == NULL) {
     perror("malloc@ ssmp_mem_init\n");
     exit(-1);
   }
@@ -158,9 +155,6 @@ void ssmpthread_mem_init(int id, int num_ues)
 
     ssmp_recv_buf[core] = tmp + ((core > id) ? (core - 1) : core);
     ssmp_recv_buf[core]->state = 0;
-  
-    ssmp_chunk_buf[core] = ssmp_chunk_mem + core;
-    ssmp_chunk_buf[core]->state = 0;
   }
 
   ********************************************************************************
@@ -221,7 +215,15 @@ void ssmpthread_mem_init(int id, int num_ues)
   //  SP("\t\t\tall initialized!");
 }
 */
+int color_app(int id) {
+  return ((id % 2) ? 1 : 0);
+}
 
+inline void ssmp_barrier_init(int barrier_num, long long int participants, int (*color)(int)) {
+	if (barrier_num >= SSMP_NUM_BARRIERS) {
+		return;
+	}
+}
 
 void set_thread(int cpu) {
   ssmp_my_core = cpu;

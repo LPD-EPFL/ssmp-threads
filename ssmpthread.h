@@ -28,6 +28,8 @@ extern uint8_t id_to_core[];
 /* ------------------------------------------------------------------------------- */
 /* defines */
 /* ------------------------------------------------------------------------------- */
+#define SSMP_MEM_NAME "/ssmp_mem2"
+#define SSMP_NUM_BARRIERS 16 /*number of available barriers*/
 #define SSMP_CACHE_LINE_SIZE 64
 #ifndef ALIGNED
 #  if __GNUC__ && !SCC
@@ -85,6 +87,11 @@ void ssmpthread_init(int num_threads);
 /* sending functions : default is blocking */
 /* ------------------------------------------------------------------------------- */
 
+/* ------------------------------------------------------------------------------- */
+/* barrier functions */
+/* ------------------------------------------------------------------------------- */
+extern int color_app(int id);
+extern inline void ssmp_barrier_init(int barrier_num, long long int participants, int (*color)(int));
 /* ------------------------------------------------------------------------------- */
 /* help funcitons */
 /* ------------------------------------------------------------------------------- */

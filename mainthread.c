@@ -6,6 +6,7 @@ uint8_t num_threads = 2;
 __thread uint8_t ID;
 
 void *mainthread(void *args) {
+
 	ID = *((int*)args);
 	set_thread(id_to_core[ID]);
 	/*ssmp_mem_init(ID, num_procs);*/
@@ -15,7 +16,7 @@ void *mainthread(void *args) {
 
 int main(int argc, char **argv) {
 
-	//ssmpthread_init(num_threads);
+	ssmpthread_init(num_threads);
 	pthread_t threads[num_threads];
 	int rank;
 	for (rank = 0; rank < num_threads; rank++) {
