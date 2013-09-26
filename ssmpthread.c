@@ -1,4 +1,6 @@
 #include "ssmp.h"
+#include <pthread.h>
+
 
 //#define SSMP_DEBUG
 
@@ -78,7 +80,7 @@ int ssmp_id_;
 int last_recv_from;
 ssmp_barrier_t *ssmp_barrier;
 int *ues_initialized;
-static uint32_t ssmp_my_core;
+static __thread uint32_t ssmp_my_core;
 
 #if defined(__tile__)
 DynamicHeader *udn_header; //headers for messaging
@@ -772,6 +774,8 @@ _mm_pause_rep(uint32_t num_reps)
 /*   return hops; */
 /* } */
 
+/**also work for the threads but the man page of
+ * sched_setaffinity recommends pthread_setaffinity_np*/
 void
 set_cpu(int cpu) 
 {
@@ -805,6 +809,22 @@ set_cpu(int cpu)
   numa_set_preferred(numa_node);  
 #endif
 }
+
+void
+set_thread(int cpu) {
+  ssmp_my_core = cpu;
+  cpu_set_t cpuset;
+  pthread_t thread = pthread_self();
+
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu, &cpuset);
+
+  if (pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset) != 0) {
+	  printf("Problem with setting thread affinity\n");
+	  exit(3);
+  }
+}
+
 
 inline uint32_t
 get_cpu()
