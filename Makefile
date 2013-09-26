@@ -66,10 +66,10 @@ VER_FLAGS+=-D$(PLATFORM)
 default: one2one main main_rt one2one_rt mainthread
 
 #new files
-mainthread:	libssmp.a mainthread.o common.h
-	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+mainthread:	libssmpthread.a mainthread.o 
+	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmpthread.a -lpthread -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
-mainthread.o:	mainthread.c
+mainthread.o:	mainthread.c ssmpthread.h
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c mainthread.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 	
 main:	libssmp.a main.o common.h
@@ -83,7 +83,6 @@ main_rt: libssmp.a main_rt.o common.h
 
 main_rt.o: main.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -DROUNDTRIP -o main_rt.o -c main.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
 
 bank:	libssmp.a bank.o common.h
 	$(CC) $(VER_FLAGS) -o bank bank.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
@@ -104,7 +103,7 @@ ssmp_broadcast.o: ssmp_broadcast.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmp_broadcast.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 #New files
-ssmpthread.o: ssmpthread.c
+ssmpthread.o: ssmpthread.c ssmpthread.h
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmpthread.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 ssmpthread_send.o: ssmpthread_send.c
@@ -124,11 +123,14 @@ pfd.o: pfd.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c pfd.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
 
 
-libssmp.a: ssmpthread.o ssmpthread_send.o ssmpthread_recv.o ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h\
-	$(MEASUREMENTS_FILES)
+libssmpthread.a: ssmpthread.o ssmpthread_send.o ssmpthread_recv.o ssmpthread.h 
+	@echo Archive name = libssmpthread.a
+	ar -r libssmpthread.a ssmpthread.o ssmpthread_send.o ssmpthread_recv.o 
+	rm -f *.o	
+
+libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h $(MEASUREMENTS_FILES)
 	@echo Archive name = libssmp.a
-	ar -r libssmp.a ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmpthread.o \
-		ssmpthread_send.o ssmpthread_recv.o $(MEASUREMENTS_FILES)
+	ar -r libssmp.a ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o $(MEASUREMENTS_FILES)
 	rm -f *.o	
 
 one2one: libssmp.a one2one.o common.h measurements.o pfd.o
