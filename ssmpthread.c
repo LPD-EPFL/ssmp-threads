@@ -98,205 +98,21 @@ ssmp_chunk_t **ssmp_chunk_buf;
 /* init / term the MP system */
 /* ------------------------------------------------------------------------------- */
 
-#if defined(NIAGARA)
-void ssmp_init(int num_procs)
-{
-
-  //create the shared space which will be managed by the allocator
-  uint32_t sizem, sizeb, sizeckp, sizeui, sizecnk, size;;
-
-  sizem = (num_procs * num_procs) * sizeof(ssmp_msg_t);
-  sizeb = SSMP_NUM_BARRIERS * sizeof(ssmp_barrier_t);
-  sizeckp = 0;
-  sizeui = num_procs * sizeof(int);
-  /* sizecnk = num_procs * sizeof(ssmp_chunk_t); */
-  sizecnk = 0;
-  size = sizem + sizeb + sizeckp + sizeui + sizecnk;
-
-  char keyF[100];
-  sprintf(keyF, SSMP_MEM_NAME);
-
-  int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
-  if (ssmpfd<0)
-    {
-      if (errno != EEXIST)
-	{
-	  perror("In shm_open");
-	  exit(1);
-	}
-
-      //this time it is ok if it already exists
-      ssmpfd = shm_open(keyF, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG);
-      if (ssmpfd<0)
-	{
-	  perror("In shm_open");
-	  exit(1);
-	}
-    }
-  else
-    {
-      if (ftruncate(ssmpfd, size) < 0) {
-	perror("ftruncate failed\n");
-	exit(1);
-      }
-    }
-
-  ssmp_mem = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
-  if (ssmp_mem == NULL)
-    {
-      perror("ssmp_mem = NULL\n");
-      exit(134);
-    }
-
-  long long unsigned int mem_just_int = (long long unsigned int) ssmp_mem;
-  ssmp_barrier = (ssmp_barrier_t *) (mem_just_int + sizem);
-  /* ssmp_chk_t *chks = (ssmp_chk_t *) (mem_just_int + sizem + sizeb); */
-  ues_initialized = (int *) (mem_just_int + sizem + sizeb + sizeckp);
-  ssmp_chunk_mem = (ssmp_chunk_t *) (mem_just_int + sizem + sizeb + sizeckp + sizeui);
-
-  /* int ue; */
-  /* for (ue = 0; ue < SSMP_NUM_BARRIERS * num_procs; ue++) { */
-  /*   chks[ue] = 0; */
-  /*   _mm_sfence(); */
-  /* } */
-
-  int bar;
-  for (bar = 0; bar < SSMP_NUM_BARRIERS; bar++) {
-    /* ssmp_barrier[bar].checkpoints = (chks + (bar * num_procs)); */
-    ssmp_barrier_init(bar, 0xFFFFFFFFFFFFFFFF, NULL);
-  }
-  ssmp_barrier_init(1, 0xFFFFFFFFFFFFFFFF, color_app);
-
-  _mm_mfence();
-}
-
-void ssmp_mem_init(int id, int num_ues) 
-{  
-  ssmp_id_ = id;
-  ssmp_num_ues_ = num_ues;
-  last_recv_from = (id + 1) % num_ues;
-
-  ssmp_recv_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
-  ssmp_send_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
-  /* ssmp_chunk_buf = (ssmp_chunk_t **) malloc(num_ues * sizeof(ssmp_chunk_t *)); */
-  if (ssmp_recv_buf == NULL || ssmp_send_buf == NULL) /* || ssmp_chunk_buf == NULL) { */
-    {
-      perror("malloc@ ssmp_mem_init\n");
-      exit(-1);
-    }
-
-  int core;
-  for (core = 0; core < num_ues; core++) 
-    {
-      ssmp_recv_buf[core] = ssmp_mem + (id * num_ues) + core;
-      ssmp_recv_buf[core]->state = 0;
-
-      ssmp_send_buf[core] = ssmp_mem + (core * num_ues) + id;
-    }
-
-  ues_initialized[id] = 1;
-
-  //  SP("waiting for all to be initialized!");
-  int ue;
-  for (ue = 0; ue < num_ues; ue++) {
-    while(!ues_initialized[ue]) 
-      {
-	_mm_pause();
-	_mm_mfence();
-      };
-  }
-  //  SP("\t\t\tall initialized!");
-}
-
-void ssmp_term() 
-{
-  if (ssmp_id_ == 0 && shm_unlink(SSMP_MEM_NAME) < 0)
-    {
-      printf("Could not unlink ssmp_mem\n");
-      fflush(stdout);
-    }
-}
-
-
-#elif defined(TILERA)
-
-void
-ssmp_init(int num_procs)
-{
-  ssmp_num_ues_ = num_procs;
-
-  //initialize shared memory
-  tmc_cmem_init(0);
-
-  // Reserve the UDN rectangle that surrounds our cpus.
-  if (tmc_udn_init(&cpus) < 0)
-    tmc_task_die("Failure in 'tmc_udn_init(0)'.");
-
-  ssmp_barrier = (tmc_sync_barrier_t *) tmc_cmem_calloc(SSMP_NUM_BARRIERS, sizeof (tmc_sync_barrier_t));
-  if (ssmp_barrier == NULL)
-    {
-      tmc_task_die("Failure in allocating mem for barriers");
-    }
-
-  uint32_t b;
-  for (b = 0; b < num_procs; b++)
-    {
-      tmc_sync_barrier_init(ssmp_barrier + b, num_procs);
-    }
-
-  if (tmc_cpus_count(&cpus) < num_procs)
-    {
-      tmc_task_die("Insufficient cpus (%d < %d).", tmc_cpus_count(&cpus), num_procs);
-    }
-
-  tmc_task_watch_forked_children(1);
-
-}
-
-void ssmp_mem_init(int id, int num_ues) 
-{  
-  ssmp_id_ = id;
-  ssmp_num_ues_ = num_ues;
-
-  // Now that we're bound to a core, attach to our UDN rectangle.
-  if (tmc_udn_activate() < 0)
-    tmc_task_die("Failure in 'tmc_udn_activate()'.");
-
-  udn_header = (DynamicHeader *) malloc(num_ues * sizeof (DynamicHeader));
-
-  if (udn_header == NULL)
-    {
-      tmc_task_die("Failure in allocating dynamic headers");
-    }
-
-  int r;
-  for (r = 0; r < num_ues; r++)
-    {
-      int _cpu = tmc_cpus_find_nth_cpu(&cpus, id_to_core[r]);
-      DynamicHeader header = tmc_udn_header_from_cpu(_cpu);
-      udn_header[r] = header;
-    }
-
-}
-
-void ssmp_term() 
-{
-}
 
 /* ---------------------------------------------------------------------------------------- */
-#else  /* x86  ---------------------------------------------------------------------------- */
+/* x86  ---------------------------------------------------------------------------- */
 /* ---------------------------------------------------------------------------------------- */
 
 
-void ssmp_init(int num_procs)
+void ssmp_init(int num_threads)
 {
   //create the shared space which will be managed by the allocator
   unsigned int sizeb, sizeckp, sizeui, sizecnk, size;;
 
   sizeb = SSMP_NUM_BARRIERS * sizeof(ssmp_barrier_t);
   sizeckp = 0;
-  sizeui = num_procs * sizeof(int);
-  sizecnk = num_procs * sizeof(ssmp_chunk_t);
+  sizeui = num_threads * sizeof(int);
+  sizecnk = num_threads * sizeof(ssmp_chunk_t);
   size = sizeb + sizeckp + sizeui + sizecnk;
 
   char keyF[100];
@@ -480,7 +296,6 @@ ssmp_term()
   sprintf(keyF, "/ssmp_core%03d", ssmp_id_);
   shm_unlink(keyF);
 }
-#endif 
 
 
 
