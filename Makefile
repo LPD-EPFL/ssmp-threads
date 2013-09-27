@@ -66,10 +66,10 @@ VER_FLAGS+=-D$(PLATFORM)
 default: one2one main main_rt one2one_rt mainthread
 
 #new files
-mainthread:	libssmpthread.a mainthread.o 
-	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmpthread.a -lpthread -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+mainthread:	libssmpthread.a libssmp.a mainthread.o
+	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmpthread.a libssmp.a -lpthread -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
-mainthread.o:	mainthread.c ssmpthread.h
+mainthread.o:	mainthread.c ssmpthread.h ssmp.h
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c mainthread.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 	
 main:	libssmp.a main.o common.h
@@ -103,7 +103,7 @@ ssmp_broadcast.o: ssmp_broadcast.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmp_broadcast.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 #New files
-ssmpthread.o: ssmpthread.c ssmpthread.h
+ssmpthread.o: ssmpthread.c ssmpthread.h ssmp.h
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmpthread.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
 ssmpthread_send.o: ssmpthread_send.c
@@ -123,12 +123,12 @@ pfd.o: pfd.c
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c pfd.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
 
 
-libssmpthread.a: ssmpthread.o ssmpthread_send.o ssmpthread_recv.o ssmpthread.h 
+libssmpthread.a: ssmpthread.o ssmpthread_send.o ssmpthread_recv.o 
 	@echo Archive name = libssmpthread.a
 	ar -r libssmpthread.a ssmpthread.o ssmpthread_send.o ssmpthread_recv.o 
 	rm -f *.o	
 
-libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp.h $(MEASUREMENTS_FILES)
+libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o $(MEASUREMENTS_FILES)
 	@echo Archive name = libssmp.a
 	ar -r libssmp.a ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o $(MEASUREMENTS_FILES)
 	rm -f *.o	

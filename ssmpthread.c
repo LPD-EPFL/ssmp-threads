@@ -1,35 +1,28 @@
+#include "ssmp.h"
 #include "ssmpthread.h"
-
+#include <pthread.h>
 
 //#define SSMP_DEBUG
 
 
-#if defined(OPTERON) || defined(TILERA) || defined(local)
-uint8_t id_to_core[] =
-  {
-    0, 1, 2, 3, 4, 5,
-    6, 7, 8, 9, 10, 11,
-    12, 13, 14, 15, 16, 17,
-    18, 19, 20, 21, 22, 23,
-    24, 25, 26, 27, 28, 29,
-    30, 31, 32, 33, 34, 35,
-    36, 37, 38, 39, 40, 41,
-    42, 43, 44, 45, 46, 47
-  };
-#endif
 /* ------------------------------------------------------------------------------- */
 /* library variables */
 /* ------------------------------------------------------------------------------- */
-ssmp_barrier_t *ssmp_barrier;
-__thread int ssmp_num_ues_;
+int ssmp_num_ues_;
 int ssmp_id_;
-__thread int *ues_initialized;
-static __thread uint32_t ssmp_my_core;
+int last_recv_from;
+ssmp_barrier_t *ssmp_barrier;
+int *ues_initialized;
+static uint32_t ssmp_my_core;
 
-static __thread ssmp_msg_t *ssmp_mem;
+#if defined(__tile__)
+DynamicHeader *udn_header; //headers for messaging
+cpu_set_t cpus;
+#else
+static ssmp_msg_t *ssmp_mem;
 volatile ssmp_msg_t **ssmp_recv_buf;
 volatile ssmp_msg_t **ssmp_send_buf;
-
+#endif
 
 /* ------------------------------------------------------------------------------- */
 /* init / term the MP system */
@@ -99,12 +92,11 @@ void ssmpthread_init(int num_threads) {
 
   _mm_mfence();//maybe not usefull since we spawn threads afterwards
 }
-/*
-void ssmpthread_mem_init(int id, int num_ues)
-{  
+
+
+void ssmpthread_mem_init(int id, int num_ues) {
   ssmp_id_ = id;
   ssmp_num_ues_ = num_ues;
-  last_recv_from = (id + 1) % num_ues;
 
   ssmp_recv_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
   ssmp_send_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
@@ -157,10 +149,10 @@ void ssmpthread_mem_init(int id, int num_ues)
     ssmp_recv_buf[core]->state = 0;
   }
 
-  ********************************************************************************
+ /********************************************************************************
     initialized own buffer
     ********************************************************************************
-
+*/
 
   ssmp_barrier_wait(0);
   
@@ -213,16 +205,6 @@ void ssmpthread_mem_init(int id, int num_ues)
       };
   }
   //  SP("\t\t\tall initialized!");
-}
-*/
-int color_app(int id) {
-  return ((id % 2) ? 1 : 0);
-}
-
-inline void ssmp_barrier_init(int barrier_num, long long int participants, int (*color)(int)) {
-	if (barrier_num >= SSMP_NUM_BARRIERS) {
-		return;
-	}
 }
 
 void set_thread(int cpu) {

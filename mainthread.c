@@ -1,14 +1,16 @@
 #include "ssmpthread.h"
+#include "ssmp.h"
 #include <stdio.h>
+#include <pthread.h>
 #include <stdlib.h>
 
 uint8_t num_threads = 2;
-__thread uint8_t ID;
+__thread uint8_t THREAD_ID;
 
 void *mainthread(void *args) {
 
-	ID = *((int*)args);
-	set_thread(id_to_core[ID]);
+	THREAD_ID = *((int*)args);
+	set_thread(id_to_core[THREAD_ID]);
 	/*ssmp_mem_init(ID, num_procs);*/
 	free(args);
 	pthread_exit(NULL);
