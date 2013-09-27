@@ -6,11 +6,9 @@
 
 
 /* ------------------------------------------------------------------------------- */
-/* library variables */
+/* library variables : moveable to ssmp.h, wait for code update */
 /* ------------------------------------------------------------------------------- */
-int ssmp_num_ues_;
-int ssmp_id_;
-int last_recv_from;
+static __thread int ssmp_id_;
 ssmp_barrier_t *ssmp_barrier;
 int *ues_initialized;
 static uint32_t ssmp_my_core;
@@ -96,7 +94,6 @@ void ssmpthread_init(int num_threads) {
 
 void ssmpthread_mem_init(int id, int num_ues) {
   ssmp_id_ = id;
-  ssmp_num_ues_ = num_ues;
 
   ssmp_recv_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
   ssmp_send_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
@@ -236,7 +233,7 @@ inline int ssmpthread_id() {
   return ssmp_id_;
 }
 
-inline int ssmpthread_num_ues() {
+/*inline int ssmpthread_num_ues() {
   return ssmp_num_ues_;
-}
+}*/
 

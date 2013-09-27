@@ -11,7 +11,7 @@ void *mainthread(void *args) {
 
 	THREAD_ID = *((int*)args);
 	set_thread(id_to_core[THREAD_ID]);
-	/*ssmp_mem_init(ID, num_procs);*/
+	ssmpthread_mem_init(THREAD_ID, num_threads);
 	free(args);
 	pthread_exit(NULL);
 }

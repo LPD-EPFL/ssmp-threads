@@ -13,6 +13,7 @@
 /* init / term the MP system */
 /* ------------------------------------------------------------------------------- */
 void ssmpthread_init(int num_threads);
+void ssmpthread_mem_init(int THREAD_ID, int num_threads);
 /* ------------------------------------------------------------------------------- */
 /* sending functions : default is blocking */
 /* ------------------------------------------------------------------------------- */
