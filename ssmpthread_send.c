@@ -19,7 +19,6 @@ inline void ssmpthread_send(uint32_t to, volatile ssmp_msg_t *msg) {
 #if defined(OPTERON)| defined(local) /* --------------------------------------- opteron */
 	volatile ssmp_msg_t *tmpm = ssmp_send_buf[to];
 #  ifdef USE_ATOMIC
-	printf("use atomic\n");
 	while (!__sync_bool_compare_and_swap(&tmpm->state, BUF_EMPTY, BUF_LOCKD)) {
 		wait_cycles(WAIT_TIME);
 	}
