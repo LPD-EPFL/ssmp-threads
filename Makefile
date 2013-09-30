@@ -66,10 +66,10 @@ VER_FLAGS+=-D$(PLATFORM)
 default: one2one main main_rt one2one_rt mainthread
 
 #new files
-mainthread:	libssmpthread.a libssmp.a mainthread.o
-	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmpthread.a libssmp.a -lpthread -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+mainthread:	libssmpthread.a mainthread.o
+	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmpthread.a -lpthread -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 
-mainthread.o: mainthread.c ssmpthread.h ssmp.h
+mainthread.o: mainthread.c ssmpthread.h
 	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c mainthread.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
 	
 main:	libssmp.a main.o common.h
