@@ -11,7 +11,6 @@ extern ssmp_barrier_t *ssmp_barrier;
 
 inline void ssmpthread_recv_from(uint32_t from, volatile ssmp_msg_t *msg) {
 
-fprintf(stderr, "recv from thread %d : %p\n", from, ssmp_recv_buf);
 fprintf(stderr, "recv from thread %d : %p\n", from, ssmp_recv_buf[from]);
 #if defined(OPTERON)| defined(local) /* --------------------------------------- opteron */
 	volatile ssmp_msg_t* tmpm = ssmp_recv_buf[from];
@@ -23,12 +22,10 @@ fprintf(stderr, "recv from thread %d : %p\n", from, ssmp_recv_buf[from]);
 	PREFETCHW(tmpm);
 	int32_t wted = 0;
 
-	//TODO solve bug : tmpm->state is nil
 	while(tmpm->state != BUF_MESSG) {
 		_mm_pause_rep(wted++ & 63);
 		PREFETCHW(tmpm);
 	}
-	fprintf(stderr, "end waiting\n");
 #  endif
 	memcpy((void*) msg, (const void*) tmpm, SSMP_CACHE_LINE_SIZE);
 	tmpm->state = BUF_EMPTY;

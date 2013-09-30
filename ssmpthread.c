@@ -68,7 +68,7 @@ __thread uint32_t ssmp_my_core;
 DynamicHeader *udn_header; //headers for messaging
 cpu_set_t cpus;
 #else
-ssmp_msg_t *ssmp_mem;//volatile is needed since ssmp_mem is set once before forking
+ssmp_msg_t *ssmp_mem;//volatile is not needed since ssmp_mem is set once before forking
 volatile ssmp_msg_t **ssmp_recv_buf;
 volatile ssmp_msg_t **ssmp_send_buf;
 #endif
@@ -184,21 +184,21 @@ void ssmpthread_mem_init(int id, int num_ues) {
 		if (id == core) {
 			continue;
 		}
-		//TODO
 		ssmp_recv_buf[core] = tmp + ((core > id) ? (core - 1) : core);
 		ssmp_recv_buf[core]->state = 0;
-		fprintf(stderr, "thread %d %p\n", ssmp_id_, ssmp_recv_buf);
-		fprintf(stderr, "thread %d %p\n", ssmp_id_, ssmp_recv_buf[0]);
-		fprintf(stderr, "thread %d %p\n", ssmp_id_, ssmp_recv_buf[1]);
 	}
 
 	/********************************************************************************
     initialized own buffer
 	 ********************************************************************************
 	 */
+	core = 0;
+	if (ssmp_id_ == 0) core = 1;
+	fprintf(stderr, "thread %d recv from %d %p\n", ssmp_id_, core, ssmp_recv_buf[core]);
 
 	ssmpthread_barrier_wait(0);
 
+	fprintf(stderr, "thread %d recv from %d %p\n", ssmp_id_, core, ssmp_recv_buf[core]);
 	for (core = 0; core < num_ues; core++) {
 		if (core == id) {
 			continue;
@@ -227,8 +227,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 		}
 
 		ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
-		if (tmp == NULL)
-		{
+		if (tmp == NULL) {
 			perror("tmp = NULL\n");
 			exit(134);
 		}
@@ -241,8 +240,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 	//  SP("waiting for all to be initialized!");
 	int ue;
 	for (ue = 0; ue < num_ues; ue++) {
-		while(!ues_initialized[ue])
-		{
+		while(!ues_initialized[ue]) {
 			_mm_pause();
 			_mm_mfence();
 		};
