@@ -13,21 +13,22 @@ void *mainthread(void *args) {
 	ssmpthread_mem_init(THREAD_ID, num_threads);
 	ssmpthread_barrier_wait(0);
 
-	printf("ticks = %d\n",getticks());
-/*
+	wait_cycles(WAIT_TIME);
+
 	if (THREAD_ID == 0) {
 		volatile  ssmp_msg_t *msgp;
 		msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
 		msgp->w0 = 5555;
-		printf("send msgp->w0 %d\n", msgp->w0);
+		fprintf(stderr, "send msgp->w0 %d\n", msgp->w0);
 		ssmpthread_send(1, msgp);
-		printf("message sent\n");
+		fprintf(stderr,"message sent\n");
 	} else if (THREAD_ID == 1) {
 		volatile  ssmp_msg_t *msgp;
 		msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
+		fprintf(stderr, "waiting for message\n");
 		ssmpthread_recv_from(0, msgp);
-		printf("recv msgp->w0 %d\n", msgp->w0);
-	}*/
+		fprintf(stderr,"recv msgp->w0 %d\n", msgp->w0);
+	}
 	free(args);
 	pthread_exit(NULL);
 }
