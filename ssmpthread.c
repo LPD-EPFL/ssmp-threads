@@ -128,8 +128,7 @@ void ssmpthread_init(int num_threads) {
 	ues_initialized = (int *) (mem_just_int + sizeb + sizeckp);
 
 	int bar;
-	for (bar = 0; bar < SSMP_NUM_BARRIERS; bar++)
-	{
+	for (bar = 0; bar < SSMP_NUM_BARRIERS; bar++) {
 		ssmpthread_barrier_init(bar, 0xFFFFFFFFFFFFFFFF, NULL);
 	}
 	ssmpthread_barrier_init(1, 0xFFFFFFFFFFFFFFFF, color_app);

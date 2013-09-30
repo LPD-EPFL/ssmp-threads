@@ -3,7 +3,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-uint8_t num_threads = 2;
+uint8_t num_threads = 3;
 __thread uint8_t THREAD_ID;
 
 void *mainthread(void *args) {
@@ -12,21 +12,27 @@ void *mainthread(void *args) {
 	set_thread(id_to_core[THREAD_ID]);
 	ssmpthread_mem_init(THREAD_ID, num_threads);
 
-	if (THREAD_ID == 0) {
+	fprintf(stderr,"thread %d waiting barrier 1\n", THREAD_ID);
+	ssmpthread_barrier_wait(0);
+	fprintf(stderr,"thread %d end barrier 1\n", THREAD_ID);
+
+	/*if (THREAD_ID == 0) {
 		volatile  ssmp_msg_t *msgp;
 		msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
 		msgp->w0 = 5555;
 		fprintf(stderr, "send msgp->w0 %d\n", msgp->w0);
-		ssmpthread_send(1, msgp);
+		//ssmpthread_send(1, msgp);
 		fprintf(stderr,"message sent\n");
 	} else if (THREAD_ID == 1) {
 		volatile  ssmp_msg_t *msgp;
 		msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
 		fprintf(stderr, "waiting for message\n");
-		ssmpthread_recv_from(0, msgp);
+		//ssmpthread_recv_from(0, msgp);
 		fprintf(stderr,"recv msgp->w0 %d\n", msgp->w0);
-	}
+	}*/
+	fprintf(stderr,"thread %d waiting barrier 2\n", THREAD_ID);
 	ssmpthread_barrier_wait(0);
+	fprintf(stderr,"thread %d end barrier 2\n", THREAD_ID);
 	free(args);
 	pthread_exit(NULL);
 }
