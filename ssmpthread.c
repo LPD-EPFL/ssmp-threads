@@ -56,7 +56,7 @@ uint8_t id_to_core[] =
 #endif
 
 /* ------------------------------------------------------------------------------- */
-/* library variables
+/* library variables															   */
 /* ------------------------------------------------------------------------------- */
 int ssmp_num_ues_;
 __thread int ssmp_id_;
@@ -372,14 +372,56 @@ ssmpthread_barrier_wait(int barrier_num) {
 /* ------------------------------------------------------------------------------- */
 /* help funcitons */
 /* ------------------------------------------------------------------------------- */
-inline void
-_mm_pause_rep(uint32_t num_reps)
-{
-	while (num_reps--)
-	{
+
+inline double wtime(void) {
+	struct timeval t;
+	gettimeofday(&t,NULL);
+	return (double)t.tv_sec + ((double)t.tv_usec)/1000000.0;
+}
+
+inline void wait_cycles(uint64_t cycles) {
+	if (cycles < 256) {
+		cycles /= 6;
+		while (cycles--) {
+			_mm_pause();
+		}
+	} else {
+		ticks _start_ticks = getticks();
+		ticks _end_ticks = _start_ticks + cycles - 130;
+		while (getticks() < _end_ticks);
+	}
+}
+
+inline void _mm_pause_rep(uint32_t num_reps) {
+	while (num_reps--) {
 		_mm_pause();
 	}
 }
+
+#if defined(__i386__)
+inline ticks getticks(void) {
+	ticks ret;
+	__asm__ __volatile__("rdtsc" : "=A" (ret));
+	return ret;
+}
+#elif defined(__x86_64__)
+inline ticks getticks(void) {
+	unsigned hi, lo;
+	__asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+	return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
+}
+#elif defined(__sparc__)
+inline ticks getticks() {
+	ticks ret;
+	__asm__ __volatile__ ("rd %%tick, %0" : "=r" (ret) : "0" (ret));
+	return ret;
+}
+#elif defined(__tile__)
+#include <arch/cycle.h>
+inline ticks getticks() {
+	return get_cycle_count();
+}
+#endif
 
 void set_thread(int cpu) {
 	ssmp_my_core = cpu;
