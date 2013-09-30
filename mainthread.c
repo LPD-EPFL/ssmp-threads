@@ -14,7 +14,6 @@ void *mainthread(void *args) {
 	ssmpthread_barrier_wait(0);
 
 	wait_cycles(WAIT_TIME);
-
 	if (THREAD_ID == 0) {
 		volatile  ssmp_msg_t *msgp;
 		msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));

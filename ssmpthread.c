@@ -68,7 +68,7 @@ __thread uint32_t ssmp_my_core;
 DynamicHeader *udn_header; //headers for messaging
 cpu_set_t cpus;
 #else
-ssmp_msg_t *ssmp_mem;
+ssmp_msg_t *ssmp_mem;//volatile is needed since ssmp_mem is set once before forking
 volatile ssmp_msg_t **ssmp_recv_buf;
 volatile ssmp_msg_t **ssmp_send_buf;
 #endif
@@ -97,24 +97,19 @@ void ssmpthread_init(int num_threads) {
 	sprintf(keyF, SSMP_MEM_NAME);
 
 	int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
-	if (ssmpfd<0)
-	{
-		if (errno != EEXIST)
-		{
+	if (ssmpfd<0) {
+		if (errno != EEXIST) {
 			perror("In shm_open");
 			exit(1);
 		}
 
 		//this time it is ok if it already exists
 		ssmpfd = shm_open(keyF, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG);
-		if (ssmpfd<0)
-		{
+		if (ssmpfd<0) {
 			perror("In shm_open");
 			exit(1);
 		}
-	}
-	else
-	{
+	} else {
 		if (ftruncate(ssmpfd, size) < 0) {
 			perror("ftruncate failed\n");
 			exit(1);
@@ -146,7 +141,6 @@ void ssmpthread_init(int num_threads) {
 void ssmpthread_mem_init(int id, int num_ues) {
 	ssmp_id_ = id;
 	ssmp_num_ues_ = num_ues;
-
 	ssmp_recv_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
 	ssmp_send_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
 	if (ssmp_recv_buf == NULL || ssmp_send_buf == NULL) {
@@ -155,12 +149,11 @@ void ssmpthread_mem_init(int id, int num_ues) {
 	}
 
 	char keyF[100];
-	unsigned int size = (num_ues - 1) * sizeof(ssmp_msg_t);
+	unsigned int size = (num_ues  - 1) * sizeof(ssmp_msg_t);
 	unsigned int core;
 	sprintf(keyF, "/ssmp_core%03d", id);
 
 	if (num_ues == 1) return;
-
 
 	int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
 	if (ssmpfd < 0) {
@@ -174,8 +167,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 			perror("In shm_open");
 			exit(1);
 		}
-	}
-	else {
+	} else {
 		if (ftruncate(ssmpfd, size) < 0) {
 			perror("ftruncate failed\n");
 			exit(1);
@@ -183,8 +175,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 	}
 
 	ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
-	if (tmp == NULL)
-	{
+	if (tmp == NULL) {
 		perror("tmp = NULL\n");
 		exit(134);
 	}
@@ -193,9 +184,12 @@ void ssmpthread_mem_init(int id, int num_ues) {
 		if (id == core) {
 			continue;
 		}
-
+		//TODO
 		ssmp_recv_buf[core] = tmp + ((core > id) ? (core - 1) : core);
 		ssmp_recv_buf[core]->state = 0;
+		fprintf(stderr, "thread %d %p\n", ssmp_id_, ssmp_recv_buf);
+		fprintf(stderr, "thread %d %p\n", ssmp_id_, ssmp_recv_buf[0]);
+		fprintf(stderr, "thread %d %p\n", ssmp_id_, ssmp_recv_buf[1]);
 	}
 
 	/********************************************************************************
@@ -328,7 +322,6 @@ ssmpthread_barrier_wait(int barrier_num) {
 		}
 	}
 
-	printf(">>Waiting barrier %d\n", barrier_num);
 	_mm_lfence();
 	uint32_t reps = 1;
 	/*what for ?*/
@@ -364,7 +357,6 @@ ssmpthread_barrier_wait(int barrier_num) {
 	}
 
 	_mm_mfence();
-	printf("<<Cleared barrier %d\n", barrier_num);
 #endif
 }
 
