@@ -17,8 +17,9 @@ void *mainthread(void *args) {
 		/**send*/
 		volatile  ssmp_msg_t *msgp;
 		msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
-		ssmpthread_send(1, msgp);
+		msgp->w0 = 5555;
 		printf("send msgp->w0 %d\n", msgp->w0);
+		ssmpthread_send(1, msgp);
 	} else if (THREAD_ID == 1) {
 		/**recv*/
 		volatile  ssmp_msg_t *msgp;
