@@ -203,7 +203,7 @@ typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_color_buf_struct
 typedef tmc_sync_barrier_t ssmp_barrier_t;
 #else
 /*barrier type*/
-typedef struct 
+typedef struct
 {
   uint64_t participants;                  /*the participants of a barrier can be given either by this, as bits (0 -> no, 1 ->participate */
   int (*color)(int); /*or as a color function: if the function return 0 -> no participant, 1 -> participant. The color function has priority over the lluint participants*/

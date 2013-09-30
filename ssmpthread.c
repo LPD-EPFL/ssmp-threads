@@ -138,6 +138,7 @@ void ssmpthread_init(int num_threads) {
 
 
 void ssmpthread_mem_init(int id, int num_ues) {
+	fprintf(stderr, "entering mem_init\n");
 	ssmp_id_ = id;
 	ssmp_num_ues_ = num_ues;
 	ssmp_recv_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
@@ -148,7 +149,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 	}
 
 	char keyF[100];
-	unsigned int size = (num_ues  - 1) * sizeof(ssmp_msg_t);
+	unsigned int size = (num_ues /* - 1*/) * sizeof(ssmp_msg_t);
 	unsigned int core;
 	sprintf(keyF, "/ssmp_core%03d", id);
 
@@ -179,25 +180,23 @@ void ssmpthread_mem_init(int id, int num_ues) {
 		exit(134);
 	}
 
+	fprintf(stderr, "foor loop %d\n", id);
 	for (core = 0; core < num_ues; core++) {
 		if (id == core) {
 			continue;
 		}
-		ssmp_recv_buf[core] = tmp + ((core > id) ? (core - 1) : core);
-		ssmp_recv_buf[core]->state = 0;
-	}
+		ssmp_recv_buf[core] = tmp + core;//((core > id) ? (core - 1) : core);
+		/*ssmp_recv_buf[core]->state = 0;*/ <- segfault here !
 
+	}
+	fprintf(stderr, "end for loop %d\n", id);
 	/********************************************************************************
     initialized own buffer
 	 ********************************************************************************
 	 */
-	core = 0;
-	if (ssmp_id_ == 0) core = 1;
-	fprintf(stderr, "thread %d recv from %d %p\n", ssmp_id_, core, ssmp_recv_buf[core]);
-
+	fprintf(stderr, "wait %d\n", id);
 	ssmpthread_barrier_wait(0);
 
-	fprintf(stderr, "thread %d recv from %d %p\n", ssmp_id_, core, ssmp_recv_buf[core]);
 	for (core = 0; core < num_ues; core++) {
 		if (core == id) {
 			continue;
@@ -224,14 +223,14 @@ void ssmpthread_mem_init(int id, int num_ues) {
 				exit(1);
 			}
 		}
-
-		ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
 		if (tmp == NULL) {
+
+			ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
 			perror("tmp = NULL\n");
 			exit(134);
 		}
 
-		ssmp_send_buf[core] = tmp + ((core < id) ? (id - 1) : id);
+		ssmp_send_buf[core] = tmp + core;//((core < id) ? (id - 1) : id);
 	}
 
 	ues_initialized[id] = 1;
@@ -263,10 +262,8 @@ inline void ssmpthread_barrier_init(int barrier_num, long long int participants,
 
 #if defined(__tile__)
 	uint32_t n, num_part = 0;
-	for (n = 0; n < ssmp_num_ues_; n++)
-	{
-		if (color(n))
-		{
+	for (n = 0; n < ssmp_num_ues_; n++) {
+		if (color(n)) {
 			num_part++;
 		}
 	}
@@ -292,7 +289,7 @@ ssmpthread_barrier_wait(int barrier_num) {
 #else
 	_mm_sfence();
 	_mm_lfence();
-	ssmp_barrier_t *b = &ssmp_barrier[barrier_num];
+	 ssmp_barrier_t *b = &ssmp_barrier[barrier_num];
 
 	int (*col)(int);
 	col = b->color;
@@ -334,6 +331,7 @@ ssmpthread_barrier_wait(int barrier_num) {
 	if (my_ticket == num_part) {
 		b->cleared = 1;
 	}
+	fprintf(stderr, "my ticket = %d / %d\n", my_ticket, num_part);
 
 	_mm_mfence();
 
@@ -345,7 +343,6 @@ ssmpthread_barrier_wait(int barrier_num) {
 		reps &= 255;
 		_mm_lfence();
 	}
-
 	/*DAF_U32(a) __sync_sub_and_fetch(a,1)*/
 	my_ticket = DAF_U32(&b->ticket);
 	/*if the node is the last, clear the flag*/
