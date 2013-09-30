@@ -328,7 +328,6 @@ ssmpthread_barrier_wait(int barrier_num) {
 		}
 	}
 
-
 	printf(">>Waiting barrier %d\n", barrier_num);
 	_mm_lfence();
 	uint32_t reps = 1;

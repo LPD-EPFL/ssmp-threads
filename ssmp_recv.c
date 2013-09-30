@@ -220,11 +220,11 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
   tmc_udn0_receive_buffer((void*) msg, SSMP_CACHE_LINE_W);
 #endif
 }
-      
+
 
 #if !defined(TILERA)
-	inline 
-	  void ssmp_recv_from_big(int from, void *data, size_t length) 
+	inline
+	  void ssmp_recv_from_big(int from, void *data, size_t length)
 	{
 	  int last_chunk = length % SSMP_CHUNK_SIZE;
 	  int num_chunks = length / SSMP_CHUNK_SIZE;
@@ -251,5 +251,5 @@ ssmp_recv_color_start(ssmp_color_buf_t *cbuf, ssmp_msg_t *msg)
 
 	  PD("recved from %d\n", from);
 	}
-      
+
 #endif
