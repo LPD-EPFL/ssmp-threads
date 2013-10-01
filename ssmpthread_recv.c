@@ -11,7 +11,6 @@ extern ssmp_barrier_t *ssmp_barrier;
 
 inline void ssmpthread_recv_from(uint32_t from, volatile ssmp_msg_t *msg) {
 
-fprintf(stderr, "recv from thread %d : %p\n", from, ssmp_recv_buf[from]);
 #if defined(OPTERON)| defined(local) /* --------------------------------------- opteron */
 	volatile ssmp_msg_t* tmpm = ssmp_recv_buf[from];
 #  ifdef USE_ATOMIC

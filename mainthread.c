@@ -3,7 +3,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-uint8_t num_threads = 3;
+uint8_t num_threads = 2;
 __thread uint8_t THREAD_ID;
 
 void *mainthread(void *args) {
@@ -24,7 +24,7 @@ void *mainthread(void *args) {
 		volatile  ssmp_msg_t *msgp;
 		msgp = (volatile ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
 		fprintf(stderr, "waiting for message\n");
-		//ssmpthread_recv_from(0, msgp);
+		ssmpthread_recv_from(0, msgp);
 		fprintf(stderr,"recv msgp->w0 %d\n", msgp->w0);
 	}
 	ssmpthread_barrier_wait(0);

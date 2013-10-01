@@ -183,9 +183,9 @@ void ssmpthread_mem_init(int id, int num_ues) {
 		if (id == core) {
 			continue;
 		}
-		ssmp_recv_buf[core] = tmp + core;//((core > id) ? (core - 1) : core);
+		ssmp_recv_buf[core] = tmp + core; //((core > id) ? (core - 1) : core);
 		ssmp_recv_buf[core]->state = 0;
-
+		fprintf(stderr, "thread %d ssmp_recv_buf[%d] = %p\n", id, core, ssmp_recv_buf[core]);
 	}
 	/********************************************************************************
     initialized own buffer
@@ -219,13 +219,15 @@ void ssmpthread_mem_init(int id, int num_ues) {
 				exit(1);
 			}
 		}
+
+		ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
 		if (tmp == NULL) {
-			//ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
 			perror("tmp = NULL\n");
 			exit(134);
 		}
 
-		ssmp_send_buf[core] = tmp + core;//((core < id) ? (id - 1) : id);
+		ssmp_send_buf[core] = tmp + core; //((core < id) ? (id - 1) : id);
+		fprintf(stderr, "thread %d ssmp_send_buf[%d] = %p\n", id, core, ssmp_send_buf[core]);
 	}
 
 	ues_initialized[id] = 1;
