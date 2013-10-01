@@ -176,12 +176,6 @@ typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_msg
 #endif	/* __sparc__ */
 } ssmp_msg_t;
 
-typedef struct 
-{
-  unsigned char data[SSMP_CHUNK_SIZE];
-  int state;
-} ssmp_chunk_t;
-
 /*type used for color-based function, i.e. functions that operate on a subset of the cores according to a color function*/
 typedef struct ALIGNED(SSMP_CACHE_LINE_SIZE) ssmp_color_buf_struct
 {
@@ -212,8 +206,8 @@ typedef struct
 } ssmp_barrier_t;
 #endif
 
-volatile extern ssmp_msg_t **ssmp_recv_buf;
-volatile extern ssmp_msg_t **ssmp_send_buf;
+extern  __thread volatile ssmp_msg_t **ssmp_recv_buf;
+extern  __thread volatile ssmp_msg_t **ssmp_send_buf;
 
 #if defined(TILERA)
 extern cpu_set_t cpus;

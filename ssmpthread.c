@@ -69,8 +69,8 @@ DynamicHeader *udn_header; //headers for messaging
 cpu_set_t cpus;
 #else
 ssmp_msg_t *ssmp_mem;//volatile is not needed since ssmp_mem is set once before forking
-volatile ssmp_msg_t **ssmp_recv_buf;
-volatile ssmp_msg_t **ssmp_send_buf;
+__thread volatile ssmp_msg_t **ssmp_recv_buf;
+__thread volatile ssmp_msg_t **ssmp_send_buf;
 #endif
 
 /* ------------------------------------------------------------------------------- */
@@ -117,7 +117,7 @@ void ssmpthread_init(int num_threads) {
 	}
 
 	ssmp_mem = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
-	if (ssmp_mem == NULL)
+	if (ssmp_mem == MAP_FAILED)
 	{
 		perror("ssmp_mem = NULL\n");
 		exit(134);
@@ -138,7 +138,6 @@ void ssmpthread_init(int num_threads) {
 
 
 void ssmpthread_mem_init(int id, int num_ues) {
-	fprintf(stderr, "entering mem_init\n");
 	ssmp_id_ = id;
 	ssmp_num_ues_ = num_ues;
 	ssmp_recv_buf = (volatile ssmp_msg_t **) malloc(num_ues * sizeof(ssmp_msg_t *));
@@ -149,7 +148,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 	}
 
 	char keyF[100];
-	unsigned int size = (num_ues /* - 1*/) * sizeof(ssmp_msg_t);
+	unsigned int size = num_ues /* - 1*/ * sizeof(ssmp_msg_t);
 	unsigned int core;
 	sprintf(keyF, "/ssmp_core%03d", id);
 
@@ -163,7 +162,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 		}
 
 		ssmpfd = shm_open(keyF, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG);
-		if (ssmpfd<0) {
+		if (ssmpfd < 0) {
 			perror("In shm_open");
 			exit(1);
 		}
@@ -175,26 +174,23 @@ void ssmpthread_mem_init(int id, int num_ues) {
 	}
 
 	ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
-	if (tmp == NULL) {
+	if (tmp == MAP_FAILED) {
 		perror("tmp = NULL\n");
 		exit(134);
 	}
 
-	fprintf(stderr, "foor loop %d\n", id);
 	for (core = 0; core < num_ues; core++) {
 		if (id == core) {
 			continue;
 		}
 		ssmp_recv_buf[core] = tmp + core;//((core > id) ? (core - 1) : core);
-		/*ssmp_recv_buf[core]->state = 0;*/ <- segfault here !
+		ssmp_recv_buf[core]->state = 0;
 
 	}
-	fprintf(stderr, "end for loop %d\n", id);
 	/********************************************************************************
     initialized own buffer
 	 ********************************************************************************
 	 */
-	fprintf(stderr, "wait %d\n", id);
 	ssmpthread_barrier_wait(0);
 
 	for (core = 0; core < num_ues; core++) {
@@ -224,8 +220,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 			}
 		}
 		if (tmp == NULL) {
-
-			ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
+			//ssmp_msg_t * tmp = (ssmp_msg_t *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
 			perror("tmp = NULL\n");
 			exit(134);
 		}
@@ -331,7 +326,6 @@ ssmpthread_barrier_wait(int barrier_num) {
 	if (my_ticket == num_part) {
 		b->cleared = 1;
 	}
-	fprintf(stderr, "my ticket = %d / %d\n", my_ticket, num_part);
 
 	_mm_mfence();
 

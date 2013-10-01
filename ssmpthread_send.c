@@ -1,7 +1,7 @@
 #include "ssmpthread.h"
 
-extern volatile ssmp_msg_t **ssmp_recv_buf;
-extern volatile ssmp_msg_t **ssmp_send_buf;
+extern __thread volatile ssmp_msg_t **ssmp_recv_buf;
+extern __thread volatile ssmp_msg_t **ssmp_send_buf;
 extern int ssmp_num_ues_;
 extern __thread int ssmp_id_;
 extern ssmp_barrier_t *ssmp_barrier;
