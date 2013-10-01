@@ -148,7 +148,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 	}
 
 	char keyF[100];
-	unsigned int size = num_ues /* - 1*/ * sizeof(ssmp_msg_t);
+	unsigned int size = (num_ues - 1) * sizeof(ssmp_msg_t);
 	unsigned int core;
 	sprintf(keyF, "/ssmp_core%03d", id);
 
@@ -183,7 +183,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 		if (id == core) {
 			continue;
 		}
-		ssmp_recv_buf[core] = tmp + core; //((core > id) ? (core - 1) : core);
+		ssmp_recv_buf[core] = tmp + ((core > id) ? (core - 1) : core);
 		ssmp_recv_buf[core]->state = 0;
 		fprintf(stderr, "thread %d ssmp_recv_buf[%d] = %p\n", id, core, ssmp_recv_buf[core]);
 	}
@@ -226,7 +226,7 @@ void ssmpthread_mem_init(int id, int num_ues) {
 			exit(134);
 		}
 
-		ssmp_send_buf[core] = tmp + core; //((core < id) ? (id - 1) : id);
+		ssmp_send_buf[core] = tmp + ((core < id) ? (id - 1) : id);
 		fprintf(stderr, "thread %d ssmp_send_buf[%d] = %p\n", id, core, ssmp_send_buf[core]);
 	}
 
