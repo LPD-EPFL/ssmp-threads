@@ -160,7 +160,7 @@ _mm_pause_rep(uint32_t num_reps)
 }
 
 void
-setthread_cpu(int cpu)
+set_cpu(int cpu)
 {
   set_cpu_platf(cpu);
   set_numa_platf(cpu);

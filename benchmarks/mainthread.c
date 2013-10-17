@@ -11,7 +11,7 @@ void *mainthread(void *args) {
 
 	THREAD_ID = *((int*)args);
 	free(args);
-	setthread_cpu(id_to_core[THREAD_ID]);
+	set_cpu(id_to_core[THREAD_ID]);
 	ssmp_mem_init(THREAD_ID, num_threads);
 
 /**test ssmp_recv a message from 2 senders*/

@@ -1,238 +1,214 @@
-MEASUREMENTS=1
-PERF_COUNTERS=0
+SRC = src
+INCLUDE = include
+BENCH = benchmarks
+PROF = prof
+
+CFLAGS = -O3 -Wall
+LDFLAGS = -lssmp -lm -lrt
+LDTFLAGS = -lssmpthread -lpthread -lm -lrt
+VER_FLAGS = -D_GNU_SOURCE
+
+MEASUREMENTS = 1
+TARGET_ARCH = i386
+TARGET_PLAT = generic
+
+ifeq ($(VERSION),DEBUG) 
+CFLAGS = -O0 -ggdb -Wall -g -fno-inline
+VER_FLAGS += -DDEBUG
+endif
 
 UNAME := $(shell uname -n)
 
 ifeq ($(UNAME), lpd48core)
-PLATFORM=OPTERON
-CC=gcc
+PLATFORM = OPTERON
+CC = gcc
 PLATFORM_NUMA=1
+TARGET_PLAT = opteron
 endif
 
-ifeq ($(UNAME), david-HP-EliteBook-8440p)
-PLATFORM=local
-CC=gcc
-PLATFORM_NUMA=0
+ifeq ($(UNAME), trigonak-laptop)
+PLATFORM = COREi7
+TARGET_ARCH = x86_64
+TARGET_PLAT = generic
+CC = gcc
 endif
 
 ifeq ($(UNAME), diassrv8)
-PLATFORM=XEON
-CC=gcc
+PLATFORM = XEON
+CC = gcc
 PLATFORM_NUMA=1
+TARGET_ARCH = x86_64
+TARGET_PLAT = xeon
 endif
 
 ifeq ($(UNAME), maglite)
-PLATFORM=NIAGARA
-CC=/opt/csw/bin/gcc -m64 -mcpu=v9 -mtune=v9
-PLATFORM_NUMA=0
+PLATFORM = NIAGARA
+CC = /opt/csw/bin/gcc
+CFLAGS += -m64 -mcpu=v9 -mtune=v9
+TARGET_ARCH = sparc
+TARGET_PLAT = niagara
 endif
 
 ifeq ($(UNAME), parsasrv1.epfl.ch)
-PLATFORM=TILERA
-CC=tile-gcc
-PERF_CLFAGS+=-ltmc
-LINK=-ltmc
+PLATFORM = TILERA
+CC = tile-gcc
+LDFLAGS += -ltmc
+TARGET_ARCH = tile
+TARGET_PLAT = tilera
 endif
 
 ifeq ($(UNAME), smal1.sics.se)
-PLATFORM=TILERA
-CC=tile-gcc
-PERF_CLFAGS+=-ltmc
-LINK=-ltmc
+PLATFORM = TILERA
+CC = tile-gcc
+LDFLAGS += -ltmc
+TARGET_ARCH = tile
 endif
 
-
-ifeq ($(P),0) #give P=0 to compile with debug info
-DEBUG_CFLAGS=-ggdb -Wall -g -fno-inline
-PERF_CLFAGS+= 
-ifeq ($(UNAME), SunOS)
-CC=/opt/csw/bin/gcc -m32 -mcpu=v9 -mtune=v9 
-endif
-else
-DEBUG_CFLAGS=-Wall
-PERF_CLFAGS+=-O3 #-O0 -g
+ifeq ($(PLATFORM), )
+PLATFORM = DEFAULT
+CC = gcc
 endif
 
 ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
-PERF_CLFAGS += -lnuma
+LDFLAGS += -lnuma
 endif 
 
-ifeq ($(PERF_COUNTERS),1) #give PERF_COUNTERS=1 for compiling with the papi library included
-PERF_CLFAGS += -lpapi
-endif 
+VER_FLAGS += -D$(PLATFORM)
 
-VER_FLAGS+=-D$(PLATFORM)
 
-default: one2one main main_rt one2one_rt mainthread
-
-#new files
-mainthread:	libssmpthread.a mainthread.o
-	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmpthread.a -lpthread -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-mainthread.o: mainthread.c ssmpthread.h
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c mainthread.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-	
-main:	libssmp.a main.o common.h
-	$(CC) $(VER_FLAGS) -o main main.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-main.o:	main.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c main.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-main_rt: libssmp.a main_rt.o common.h
-	$(CC) $(VER_FLAGS) -o main_rt main_rt.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-main_rt.o: main.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -DROUNDTRIP -o main_rt.o -c main.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-bank:	libssmp.a bank.o common.h
-	$(CC) $(VER_FLAGS) -o bank bank.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-bank.o:	bank.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c bank.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-ssmp.o: ssmp.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmp.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-ssmp_send.o: ssmp_send.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmp_send.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-ssmp_recv.o: ssmp_send.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmp_recv.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-ssmp_broadcast.o: ssmp_broadcast.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmp_broadcast.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-#New files
-ssmpthread.o: ssmpthread.c ssmpthread.h ssmp.h
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmpthread.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-ssmpthread_send.o: ssmpthread_send.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmpthread_send.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-ssmpthread_recv.o: ssmpthread_send.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ssmpthread_recv.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-ifeq ($(MEASUREMENTS),1)
-PERF_CLFAGS += -DDO_TIMINGS
-MEASUREMENTS_FILES += measurements.o pfd.o
+ifeq ($(TARGET_ARCH), i386)
+ARCH_C = $(SRC)/arch/x86
+else ifeq ($(TARGET_ARCH), x86_64)
+ARCH_C = $(SRC)/arch/x86
+else ifeq ($(TARGET_ARCH), sparc)
+ARCH_C = $(SRC)/arch/sparc
+else ifeq ($(TARGET_ARCH), tile)
+ARCH_C = $(SRC)/arch/tile
 endif
 
-measurements.o: measurements.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c measurements.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+PLAT_C = $(SRC)/platform/$(TARGET_PLAT)
 
-pfd.o: pfd.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c pfd.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
+all: one2one one2one_rt client_server client_server_rt bank one2one_big barrier_test cs threadone2one mainthread
 
+default: one2one
 
-libssmpthread.a: ssmpthread.o ssmpthread_send.o ssmpthread_recv.o 
+ssmpthread.o: $(SRC)/ssmpthread.c 
+	$(CC) $(VER_FLAGS) -c $(SRC)/ssmpthread.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+ssmpthread_arch.o: $(ARCH_C)/ssmpthread_arch.c 
+	$(CC) $(VER_FLAGS) -c $(ARCH_C)/ssmpthread_arch.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+ssmpthread_platf.o: $(PLAT_C)/ssmpthread_platf.c 
+	$(CC) $(VER_FLAGS) -c $(PLAT_C)/ssmpthread_platf.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+ssmpthread_send.o: $(SRC)/ssmpthread_send.c
+	$(CC) $(VER_FLAGS) -c $(SRC)/ssmpthread_send.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+ssmpthread_recv.o: $(SRC)/ssmpthread_send.c
+	$(CC) $(VER_FLAGS) -c $(SRC)/ssmpthread_recv.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+	
+ssmpthread_broadcast.o: $(SRC)/ssmpthread_broadcast.c
+	$(CC) $(VER_FLAGS) -c $(SRC)/ssmpthread_broadcast.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+	
+	
+ssmp.o: $(SRC)/ssmp.c 
+	$(CC) $(VER_FLAGS) -c $(SRC)/ssmp.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+ssmp_arch.o: $(ARCH_C)/ssmp_arch.c 
+	$(CC) $(VER_FLAGS) -c $(ARCH_C)/ssmp_arch.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+ssmp_platf.o: $(PLAT_C)/ssmp_platf.c 
+	$(CC) $(VER_FLAGS) -c $(PLAT_C)/ssmp_platf.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+ssmp_send.o: $(SRC)/ssmp_send.c
+	$(CC) $(VER_FLAGS) -c $(SRC)/ssmp_send.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+ssmp_recv.o: $(SRC)/ssmp_send.c
+	$(CC) $(VER_FLAGS) -c $(SRC)/ssmp_recv.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+ssmp_broadcast.o: $(SRC)/ssmp_broadcast.c
+	$(CC) $(VER_FLAGS) -c $(SRC)/ssmp_broadcast.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+ifeq ($(MEASUREMENTS),1)
+VER_FLAGS += -DDO_TIMINGS
+MEASUREMENTS_FILES += measurements.o
+endif
+
+measurements.o: $(PROF)/measurements.c
+	$(CC) $(VER_FLAGS) -c $(PROF)/measurements.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+libssmpthread.a: ssmpthread.o ssmpthread_arch.o ssmpthread_send.o ssmpthread_recv.o ssmpthread_broadcast.o ssmpthread_platf.o $(INCLUDE)/ssmpthread.h $(MEASUREMENTS_FILES)
 	@echo Archive name = libssmpthread.a
-	ar -r libssmpthread.a ssmpthread.o ssmpthread_send.o ssmpthread_recv.o 
-	rm -f *.o	
+	ar -r libssmpthread.a ssmpthread.o ssmpthread_arch.o ssmpthread_send.o ssmpthread_recv.o ssmpthread_broadcast.o ssmpthread_platf.o $(MEASUREMENTS_FILES)
 
-libssmp.a: ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o $(MEASUREMENTS_FILES)
+libssmp.a: ssmp.o ssmp_arch.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp_platf.o $(INCLUDE)/ssmp.h $(MEASUREMENTS_FILES)
 	@echo Archive name = libssmp.a
-	ar -r libssmp.a ssmp.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o $(MEASUREMENTS_FILES)
-	rm -f *.o	
+	ar -r libssmp.a ssmp.o ssmp_arch.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp_platf.o $(MEASUREMENTS_FILES)
 
-one2one: libssmp.a one2one.o common.h measurements.o pfd.o
-	$(CC) $(VER_FLAGS) -o one2one one2one.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+client_server: libssmp.a client_server.o $(INCLUDE)/common.h
+	$(CC) $(VER_FLAGS) -o client_server client_server.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 
 
-one2one.o:	one2one.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+client_server.o:	$(BENCH)/client_server.c
+	$(CC) $(VER_FLAGS) -c $(BENCH)/client_server.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
-one2one_step: libssmp.a one2one_step.o common.h measurements.o pfd.o
-	$(CC) $(VER_FLAGS) -o one2one_step one2one_step.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+client_server_rt: libssmp.a client_server_rt.o $(INCLUDE)/common.h
+	$(CC) $(VER_FLAGS) -o client_server_rt client_server_rt.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 
 
-one2one_step.o:	one2one_step.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c one2one_step.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+client_server_rt.o: $(BENCH)/client_server.c
+	$(CC) $(VER_FLAGS) -DROUNDTRIP -o client_server_rt.o -c $(BENCH)/client_server.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+bank: libssmp.a bank.o $(INCLUDE)/common.h
+	$(CC) $(VER_FLAGS) -o bank bank.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 
 
+bank.o:	$(BENCH)/bank.c
+	$(CC) $(VER_FLAGS) -c $(BENCH)/bank.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
-one2one_rt: libssmp.a one2one_rt.o common.h measurements.o pfd.o
-	$(CC) $(VER_FLAGS) -o one2one_rt one2one_rt.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+mainthread:	libssmpthread.a mainthread.o
+	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmpthread.a $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./
 
-one2one_rt.o:	one2one.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -DROUNDTRIP -o one2one_rt.o -c one2one.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+mainthread.o: $(BENCH)/mainthread.c 
+	$(CC) $(VER_FLAGS) -c $(BENCH)/mainthread.c $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./
 
+threadone2one: libssmpthread.a threadone2one.o  $(INCLUDE)/common.h measurements.o
+	$(CC) $(VER_FLAGS) -o threadone2one threadone2one.o $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./ 
 
-cas_stresh: libssmp.a cas_stresh.o common.h
-	$(CC) $(VER_FLAGS) -o cas_stresh cas_stresh.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+threadone2one.o: $(BENCH)/threadone2one.c $(SRC)/ssmpthread.c
+		$(CC) $(VER_FLAGS) -c $(BENCH)/threadone2one.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+		
+one2one: libssmp.a one2one.o $(INCLUDE)/common.h measurements.o
+	$(CC) $(VER_FLAGS) -o one2one one2one.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 
 
-cas_stresh.o:	cas_stresh.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c cas_stresh.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+one2one.o: $(BENCH)/one2one.c $(SRC)/ssmp.c
+		$(CC) $(VER_FLAGS) -c $(BENCH)/one2one.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
-one2one_manual: libssmp.a one2one_manual.o common.h
-	$(CC) $(VER_FLAGS) -o one2one_manual one2one_manual.o libssmp.a libpapi.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+one2one_rt: libssmp.a one2one_rt.o $(INCLUDE)/common.h measurements.o
+	$(CC) $(VER_FLAGS) -o one2one_rt one2one_rt.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 
 
-one2one_manual.o:	one2one_manual.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c one2one_manual.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+one2one_rt.o:	$(BENCH)/one2one.c $(SRC)/ssmp.c
+		$(CC) $(VER_FLAGS) -DROUNDTRIP -o one2one_rt.o -c $(BENCH)/one2one.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
-moesi: libssmp.a moesi.o common.h
-	$(CC) $(VER_FLAGS) -o moesi moesi.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+one2one_big: libssmp.a one2one_big.o $(INCLUDE)/common.h
+	$(CC) $(VER_FLAGS) -o one2one_big one2one_big.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 	
 
-moesi.o:	moesi.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c moesi.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+one2one_big.o:	$(BENCH)/one2one_big.c $(SRC)/ssmp.c
+		$(CC) $(VER_FLAGS) -c $(BENCH)/one2one_big.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
-l1_spil: libssmp.a l1_spil.o common.h
-	$(CC) $(VER_FLAGS) -o l1_spil l1_spil.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+barrier_test: libssmp.a barrier_test.o $(INCLUDE)/common.h
+	$(CC) $(VER_FLAGS) -o barrier_test barrier_test.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 	
 
-l1_spil.o:	l1_spil.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c l1_spil.c $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
+barrier_test.o: $(BENCH)/barrier_test.c $(SRC)/ssmp.c
+		$(CC) $(VER_FLAGS) -c $(BENCH)/barrier_test.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
-ticket_lock: libssmp.a ticket_lock.o common.h
-	$(CC) $(VER_FLAGS) -o ticket_lock ticket_lock.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+l1_spil: libssmp.a l1_spil.o $(INCLUDE)/common.h
+	$(CC) $(VER_FLAGS) -o l1_spil l1_spil.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 
 
-ticket_lock.o:	ticket_lock.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c ticket_lock.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+l1_spil.o: $(PROF)/l1_spil.c $(SRC)/ssmp.c
+		$(CC) $(VER_FLAGS) -c $(PROF)/l1_spil.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
+cs: libssmp.a cs.o $(INCLUDE)/common.h measurements.o
+	$(CC) $(VER_FLAGS) -o cs cs.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 
 
-one2onep: libssmp.a one2onep.o common.h
-	$(CC) $(VER_FLAGS) -o one2onep one2onep.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
-
-one2onep.o:	one2onep.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c one2onep.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-wcycles: libssmp.a wcycles.o common.h
-	$(CC) $(VER_FLAGS) -o wcycles wcycles.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
-
-wcycles.o:	wcycles.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c wcycles.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-
-memstresh: libssmp.a memstresh.o common.h
-	$(CC) $(VER_FLAGS) -o memstresh memstresh.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
-
-memstresh.o:	memstresh.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c memstresh.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-memstreshmp: libssmp.a memstreshmp.o common.h
-	$(CC) $(VER_FLAGS) -o memstreshmp memstreshmp.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
-
-memstreshmp.o:	memstreshmp.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c memstreshmp.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-one2onebig: libssmp.a one2onebig.o common.h
-	$(CC) $(VER_FLAGS) -o one2onebig one2onebig.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
-
-one2onebig.o:	one2onebig.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c one2onebig.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-mainbig:	libssmp.a mainbig.o common.h
-	$(CC) $(VER_FLAGS) -o mainbig mainbig.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS) 
-
-mainbig.o:	mainbig.c
-	$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c mainbig.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-
-barrier: libssmp.a barrier.o common.h
-	$(CC) $(VER_FLAGS) -o barrier barrier.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
-
-barrier.o:	barrier.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c barrier.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
-
-color_buf: libssmp.a color_buf.o common.h
-	$(CC) $(VER_FLAGS) -o color_buf color_buf.o libssmp.a -lrt $(DEBUG_CFLAGS) $(PERF_CLFAGS)	
-
-color_buf.o:	color_buf.c ssmp.c
-		$(CC) $(VER_FLAGS) -D_GNU_SOURCE -c color_buf.c $(DEBUG_CFLAGS) $(PERF_CLFAGS)
+cs.o: $(BENCH)/cs.c $(SRC)/ssmp.c
+		$(CC) $(VER_FLAGS) -c $(BENCH)/cs.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
 clean:
-	rm -f *.o *.a
+	rm -f *.o *.a client_server client_server_rt one2one one2one_rt bank barrier_test one2one_big l1_spil cs mainthread threadone2one

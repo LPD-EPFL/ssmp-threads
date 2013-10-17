@@ -215,7 +215,7 @@ extern inline void _mm_pause_rep(uint32_t num_reps);
 extern inline uint32_t get_num_hops(uint32_t core1, uint32_t core2);
 
 /* set the core on which the process will run on */
-extern void setthread_cpu(int cpu);
+extern void set_cpu(int cpu);
 
 /* get the value of the timestamp counter of the core */
 extern inline ticks getticks(void);

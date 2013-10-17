@@ -177,7 +177,7 @@ void *mainthread(void *args) {
 	tmc_cmem_init(0);		/*   initialize shared memory */
 #endif  /* TILERA */
 
-	setthread_cpu(on);
+	set_cpu(on);
 
 	ssmp_mem_init(ID, num_procs);
 
