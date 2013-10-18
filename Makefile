@@ -71,6 +71,7 @@ endif
 
 ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
 LDFLAGS += -lnuma
+LDTFLAGS += -lnuma
 endif 
 
 VER_FLAGS += -D$(PLATFORM)
@@ -163,13 +164,13 @@ bank.o:	$(BENCH)/bank.c
 	$(CC) $(VER_FLAGS) -c $(BENCH)/bank.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
 mainthread:	libssmpthread.a mainthread.o
-	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmpthread.a $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./
+	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmpthread.a $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./
 
 mainthread.o: $(BENCH)/mainthread.c 
 	$(CC) $(VER_FLAGS) -c $(BENCH)/mainthread.c $(CFLAGS) -I./$(INCLUDE) -L./
 
 threadone2one: libssmpthread.a threadone2one.o  $(INCLUDE)/common.h measurements.o
-	$(CC) $(VER_FLAGS) -o threadone2one threadone2one.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 
+	$(CC) $(VER_FLAGS) -o threadone2one threadone2one.o $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./ 
 
 threadone2one.o: $(BENCH)/threadone2one.c $(SRC)/ssmpthread.c
 		$(CC) $(VER_FLAGS) -c $(BENCH)/threadone2one.c $(CFLAGS) -I./$(INCLUDE) -L./ 
