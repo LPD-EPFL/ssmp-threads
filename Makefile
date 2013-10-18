@@ -169,7 +169,7 @@ mainthread.o: $(BENCH)/mainthread.c
 	$(CC) $(VER_FLAGS) -c $(BENCH)/mainthread.c $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./
 
 threadone2one: libssmpthread.a threadone2one.o  $(INCLUDE)/common.h measurements.o
-	$(CC) $(VER_FLAGS) -o threadone2one threadone2one.o $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./ 
+	$(CC) $(VER_FLAGS) -o threadone2one threadone2one.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 
 
 threadone2one.o: $(BENCH)/threadone2one.c $(SRC)/ssmpthread.c
 		$(CC) $(VER_FLAGS) -c $(BENCH)/threadone2one.c $(CFLAGS) -I./$(INCLUDE) -L./ 
