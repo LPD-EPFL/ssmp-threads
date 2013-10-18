@@ -21,7 +21,7 @@
 #include "threadcommon.h"
 #include "ssmpthread.h"
 
-#include "measurements.h"
+#include "threadmeasurements.h"
 
 #define ROUNDTRIP_
 

@@ -129,6 +129,7 @@ ssmp_barrier_wait(int barrier_num)
 /* ------------------------------------------------------------------------------- */
 /* help funcitons */
 /* ------------------------------------------------------------------------------- */
+static ticks getticks_correction; /**added static*/
 
 inline double
 wtime(void)
@@ -172,7 +173,6 @@ getticks(void)
   return getticks_platf();
 }
 
-ticks getticks_correction;
 
 ticks 
 getticks_correction_calc() 

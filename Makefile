@@ -133,14 +133,18 @@ ssmp_broadcast.o: $(SRC)/ssmp_broadcast.c
 ifeq ($(MEASUREMENTS),1)
 VER_FLAGS += -DDO_TIMINGS
 MEASUREMENTS_FILES += measurements.o
+THREADMEASUREMENTS_FILES += threadmeasurements.o
 endif
+
+threadmeasurements.o: $(PROF)/threadmeasurements.c
+	$(CC) $(VER_FLAGS) -c $(PROF)/threadmeasurements.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
 measurements.o: $(PROF)/measurements.c
 	$(CC) $(VER_FLAGS) -c $(PROF)/measurements.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
-libssmpthread.a: ssmpthread.o ssmpthread_arch.o ssmpthread_send.o ssmpthread_recv.o ssmpthread_broadcast.o ssmpthread_platf.o $(INCLUDE)/ssmpthread.h $(MEASUREMENTS_FILES)
+libssmpthread.a: ssmpthread.o ssmpthread_arch.o ssmpthread_send.o ssmpthread_recv.o ssmpthread_broadcast.o ssmpthread_platf.o $(INCLUDE)/ssmpthread.h $(THREADMEASUREMENTS_FILES)
 	@echo Archive name = libssmpthread.a
-	ar -r libssmpthread.a ssmpthread.o ssmpthread_arch.o ssmpthread_send.o ssmpthread_recv.o ssmpthread_broadcast.o ssmpthread_platf.o $(MEASUREMENTS_FILES)
+	ar -r libssmpthread.a ssmpthread.o ssmpthread_arch.o ssmpthread_send.o ssmpthread_recv.o ssmpthread_broadcast.o ssmpthread_platf.o $(THREADMEASUREMENTS_FILES)
 
 libssmp.a: ssmp.o ssmp_arch.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp_platf.o $(INCLUDE)/ssmp.h $(MEASUREMENTS_FILES)
 	@echo Archive name = libssmp.a
