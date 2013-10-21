@@ -95,7 +95,7 @@ extern ticks getticks_correction_calc();
     };
 
   extern __thread uint64_t entry_time[ENTRY_TIMES_SIZE];
-  extern enum timings_bool_t entry_time_valid[ENTRY_TIMES_SIZE];
+  extern __thread enum timings_bool_t entry_time_valid[ENTRY_TIMES_SIZE];
   extern __thread uint64_t total_sum_ticks[ENTRY_TIMES_SIZE];
   extern __thread long long total_samples[ENTRY_TIMES_SIZE];
   extern __thread const char *measurement_msgs[ENTRY_TIMES_SIZE];
