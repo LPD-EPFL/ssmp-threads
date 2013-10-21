@@ -14,3 +14,5 @@ do
 		done
 	done
 done
+
+rm tmp
