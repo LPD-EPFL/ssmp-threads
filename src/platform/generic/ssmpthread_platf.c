@@ -34,7 +34,7 @@ extern __thread volatile ssmp_msg_t** ssmp_send_buf;
 extern __thread ssmp_chunk_t** ssmp_chunk_buf;
 extern int ssmp_num_ues_;
 extern __thread int ssmp_id_;
-extern int last_recv_from;
+//extern int last_recv_from; not used
 extern ssmp_barrier_t* ssmp_barrier;
 
 uint8_t id_to_core[] =

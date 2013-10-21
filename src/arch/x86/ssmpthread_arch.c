@@ -36,7 +36,7 @@
 
 int ssmp_num_ues_;
 __thread int ssmp_id_;
-int last_recv_from;
+//int last_recv_from; not used
 ssmp_barrier_t* ssmp_barrier;
 volatile int* ues_initialized;
 static __thread uint32_t ssmp_my_core;
@@ -121,7 +121,7 @@ ssmp_mem_init_platf(int id, int num_ues)
 {  
 	ssmp_id_ = id;
 	ssmp_num_ues_ = num_ues;
-	last_recv_from = (id + 1) % num_ues;
+	//last_recv_from = (id + 1) % num_ues;
 
 	ssmp_recv_buf = (volatile ssmp_msg_t**) memalign(SSMP_CACHE_LINE_SIZE, num_ues * sizeof(ssmp_msg_t*));
 	ssmp_send_buf = (volatile ssmp_msg_t**) memalign(SSMP_CACHE_LINE_SIZE, num_ues * sizeof(ssmp_msg_t*));

@@ -89,7 +89,7 @@ endif
 
 PLAT_C = $(SRC)/platform/$(TARGET_PLAT)
 
-all: one2one one2one_rt client_server client_server_rt bank one2one_big barrier_test cs threadone2one mainthread
+all: one2one one2one_rt client_server client_server_rt bank one2one_big barrier_test cs threadone2one mainthread threadbarrier_test
 
 default: one2one
 
@@ -196,6 +196,12 @@ one2one_big: libssmp.a one2one_big.o $(INCLUDE)/common.h
 
 one2one_big.o:	$(BENCH)/one2one_big.c $(SRC)/ssmp.c
 		$(CC) $(VER_FLAGS) -c $(BENCH)/one2one_big.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
+threadbarrier_test: libssmpthread.a threadbarrier_test.o $(INCLUDE)/threadcommon.h
+	$(CC) $(VER_FLAGS) -o threadbarrier_test threadbarrier_test.o $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./ 	
+
+threadbarrier_test.o: $(BENCH)/threadbarrier_test.c $(SRC)/ssmpthread.c
+		$(CC) $(VER_FLAGS) -c $(BENCH)/threadbarrier_test.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
 barrier_test: libssmp.a barrier_test.o $(INCLUDE)/common.h
 	$(CC) $(VER_FLAGS) -o barrier_test barrier_test.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 	

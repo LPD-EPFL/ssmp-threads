@@ -52,12 +52,12 @@ uint8_t id_to_core[] =
 
 int ssmp_num_ues_;
 __thread int ssmp_id_;
-int last_recv_from;
+//int last_recv_from;
 ssmp_barrier_t* ssmp_barrier;
 volatile int* ues_initialized;
 static __thread uint32_t ssmp_my_core;
 
-static __thread ssmp_msg_t* ssmp_mem;
+static ssmp_msg_t* ssmp_mem;
 __thread volatile ssmp_msg_t** ssmp_recv_buf;
 __thread volatile ssmp_msg_t** ssmp_send_buf;
 static ssmp_chunk_t* ssmp_chunk_mem;
@@ -144,7 +144,7 @@ ssmp_mem_init_platf(int id, int num_ues)
 {  
   ssmp_id_ = id;
   ssmp_num_ues_ = num_ues;
-  last_recv_from = (id + 1) % num_ues;
+  //last_recv_from = (id + 1) % num_ues;
 
   ssmp_recv_buf = (volatile ssmp_msg_t**) memalign(SSMP_CACHE_LINE_SIZE, num_ues * sizeof(ssmp_msg_t*));
   ssmp_send_buf = (volatile ssmp_msg_t**) memalign(SSMP_CACHE_LINE_SIZE, num_ues * sizeof(ssmp_msg_t*));
@@ -385,6 +385,7 @@ ssmp_barrier_wait_platf(int barrier_num)
 /* help funcitons */
 /* ------------------------------------------------------------------------------- */
 
+/**work also the thread aka LWP, see man*/
 void
 set_cpu_platf(int cpu) 
 {
