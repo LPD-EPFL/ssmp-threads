@@ -36,7 +36,6 @@ __thread enum timings_bool_t entry_time_valid[ENTRY_TIMES_SIZE] = {M_FALSE, M_FA
 __thread ticks total_sum_ticks[ENTRY_TIMES_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 __thread long long total_samples[ENTRY_TIMES_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 __thread const char *measurement_msgs[ENTRY_TIMES_SIZE];
-__thread ticks getticks_correction = 0; //used in threadmeasurements.h
 
 void 
 prints_ticks_stats(int start, int end) 

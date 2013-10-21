@@ -143,7 +143,7 @@ main(int argc, char **argv) {
 	PRINT("ONEWAY");
 #endif  /* ROUNDTRIP */
 
-	getticks_correction = getticks_correction_calc();
+	getticks_correction_calc();
 
 	ssmp_init(num_procs);
 

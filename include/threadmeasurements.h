@@ -38,8 +38,6 @@ extern "C" {
 #include "threadcommon.h"
 #include "ssmpthread.h"
 
-extern ticks getticks_correction_calc();
-extern __thread ticks getticks_correction; /**defined in application source files*/
 
 #ifndef REF_SPEED_GHZ
 #  if defined(OPTERON)

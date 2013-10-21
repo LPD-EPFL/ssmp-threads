@@ -220,7 +220,8 @@ extern void set_cpu(int cpu);
 /* get the value of the timestamp counter of the core */
 extern inline ticks getticks(void);
 /* the cost (in cycles) of a getticks call */
-//extern ticks getticks_correction; /**declared as static in ssmpthread.c*/
+extern __thread ticks getticks_correction;
+extern ticks getticks_correction_calc();
 
 /* round up to next higher power of 2 (return x if it's already a power
    of 2) for 32-bit numbers */
