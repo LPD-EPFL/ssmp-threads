@@ -57,7 +57,7 @@ void *mainthread(void *args) {
 	if (THREAD_ID == 0) {
 		ssmp_msg_t *msgp;
 		msgp = (ssmp_msg_t *) malloc(sizeof(ssmp_msg_t));
-		msgp->w0 = THREAD_ID;
+		msgp->w0 = 8888;
 		ssmp_send_no_sync(1, msgp);
 		free(msgp);
 	} else if (THREAD_ID == 1) {
