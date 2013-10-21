@@ -36,7 +36,6 @@ uint8_t num_app = 0;
 uint8_t dsl_per_core = 2;
 uint32_t delay_after = 0;
 uint32_t delay_cs = 0;
-__thread ticks getticks_correction;
 
 int 
 color_all(int id)

@@ -27,7 +27,6 @@
 
 int num_procs = 2;
 long long int num_msgs = 10000000;
-__thread ticks getticks_correction;
 uint32_t wait_cycles_after = 0;
 __thread uint8_t ID;
 int core1 = 0;
