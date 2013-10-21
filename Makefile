@@ -89,7 +89,7 @@ endif
 
 PLAT_C = $(SRC)/platform/$(TARGET_PLAT)
 
-all: one2one one2one_rt client_server client_server_rt bank one2one_big barrier_test cs threadone2one mainthread threadbarrier_test
+all: one2one one2one_rt client_server client_server_rt bank one2one_big barrier_test cs threadone2one mainthread threadbarrier_test threadclient_server
 
 default: one2one
 
@@ -150,6 +150,12 @@ libssmp.a: ssmp.o ssmp_arch.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp_plat
 	@echo Archive name = libssmp.a
 	ar -r libssmp.a ssmp.o ssmp_arch.o ssmp_send.o ssmp_recv.o ssmp_broadcast.o ssmp_platf.o $(MEASUREMENTS_FILES)
 
+threadclient_server: libssmpthread.a threadclient_server.o $(INCLUDE)/threadcommon.h
+	$(CC) $(VER_FLAGS) -o threadclient_server threadclient_server.o $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./ 
+
+threadclient_server.o:	$(BENCH)/threadclient_server.c
+	$(CC) $(VER_FLAGS) -c $(BENCH)/threadclient_server.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+	
 client_server: libssmp.a client_server.o $(INCLUDE)/common.h
 	$(CC) $(VER_FLAGS) -o client_server client_server.o $(CFLAGS) $(LDFLAGS) -I./$(INCLUDE) -L./ 
 
@@ -222,4 +228,4 @@ cs.o: $(BENCH)/cs.c $(SRC)/ssmp.c
 		$(CC) $(VER_FLAGS) -c $(BENCH)/cs.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
 clean:
-	rm -f *.o *.a client_server client_server_rt one2one one2one_rt bank barrier_test one2one_big l1_spil cs mainthread threadone2one
+	rm -f *.o *.a client_server client_server_rt one2one one2one_rt bank barrier_test one2one_big l1_spil cs mainthread threadone2one threadbarrier_test threadclient_server
