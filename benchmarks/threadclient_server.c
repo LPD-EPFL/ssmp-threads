@@ -155,7 +155,6 @@ main(int argc, char **argv)
 		}
 	}
 
-	ID = 0;
 
 	printf("processes: %-10d / msgs: %10u\n", num_procs, num_msgs);
 	printf("Delay after each message : %u\n", delay_after);

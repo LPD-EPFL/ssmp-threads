@@ -154,7 +154,7 @@ ssmp_recv_color_platf(ssmp_color_buf_t* cbuf, ssmp_msg_t* msg)
 }
 
 
-static uint32_t start_recv_from = 0; /* keeping from which core to start the recv from next */
+static __thread uint32_t start_recv_from = 0; /* keeping from which core to start the recv from next */
 
 inline void
 ssmp_recv_color_start_platf(ssmp_color_buf_t* cbuf, ssmp_msg_t* msg)
