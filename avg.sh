@@ -3,9 +3,9 @@
 for command in "./threadone2one" "./one2one"
 do
 	echo $command
-	for pair in 2 4 8 16 32 48 64 96 128 256 512 1024
+	for location in "same-die" "same-mcm" "one-hop" "two-hop"
 	do
-		awk -v e="$command $pair" ' BEGIN{sum = 0; count = 0} $0 ~ e {sum += $3; count++} END{print e, count, (sum/count)} ' measures 
+		awk -v e="$command $location" ' BEGIN{sum = 0; count = 0} $0 ~ e {sum += $3; count++} END{print e, (sum/count)} ' measures 
 	done
 done
 
