@@ -46,13 +46,13 @@ uint8_t id_to_core[] =
 /* ------------------------------------------------------------------------------- */
 
 int ssmp_num_ues_;
-int ssmp_id_;
-int last_recv_from;
+__thread int ssmp_id_;
+//int last_recv_from;
 ssmp_barrier_t* ssmp_barrier;
 volatile int* ues_initialized;
-static uint32_t ssmp_my_core;
+static __thread uint32_t ssmp_my_core;
 
-DynamicHeader* udn_header; //headers for messaging
+__thread DynamicHeader* udn_header; //headers for messaging
 cpu_set_t cpus;
 
 /* ------------------------------------------------------------------------------- */
