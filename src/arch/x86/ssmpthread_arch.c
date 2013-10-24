@@ -44,6 +44,8 @@ static __thread uint32_t ssmp_my_core;
 static ssmp_msg_t* ssmp_mem;
 __thread volatile ssmp_msg_t** ssmp_recv_buf;
 __thread volatile ssmp_msg_t** ssmp_send_buf;
+/**map will store the addresses returned by the calls to mmap (one per thread)*/
+static ssmp_msg_t **map;
 static ssmp_chunk_t* ssmp_chunk_mem;
 __thread ssmp_chunk_t** ssmp_chunk_buf;
 
@@ -56,7 +58,7 @@ void
 ssmp_init_platf(int num_procs)
 {
 	//create the shared space which will be managed by the allocator
-	unsigned int sizeb, sizeui, sizecnk, size;;
+	unsigned int sizeb, sizeui, sizecnk, size, sizem;
 
 	sizeb = SSMP_NUM_BARRIERS * sizeof(ssmp_barrier_t);
 	SSMP_INC_ALIGN(sizeb);
@@ -64,7 +66,9 @@ ssmp_init_platf(int num_procs)
 	SSMP_INC_ALIGN(sizeui);
 	sizecnk = num_procs * sizeof(ssmp_chunk_t);
 	SSMP_INC_ALIGN(sizecnk);
-	size = sizeb + sizeui + sizecnk;
+	sizem = num_procs * sizeof(ssmp_msg_t*);
+	SSMP_INC_ALIGN(sizem);
+	size = sizeb + sizeui + sizecnk + sizem;
 
 	char keyF[100];
 	sprintf(keyF, SSMP_MEM_NAME);
@@ -105,6 +109,7 @@ ssmp_init_platf(int num_procs)
 	ssmp_barrier = (ssmp_barrier_t*) (mem_just_int);
 	ues_initialized = (volatile int*) (mem_just_int + sizeb);
 	ssmp_chunk_mem = (ssmp_chunk_t*) (mem_just_int + sizeb + sizeui);
+	map = (ssmp_msg_t**) (mem_just_int + sizeb + sizeui + sizecnk);
 
 	int bar;
 	for (bar = 0; bar < SSMP_NUM_BARRIERS; bar++)
@@ -166,6 +171,8 @@ ssmp_mem_init_platf(int id, int num_ues)
 	}
 
 	ssmp_msg_t* tmp = (ssmp_msg_t*) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
+	map[id] = tmp;
+
 	if ((unsigned long) tmp % SSMP_CACHE_LINE_SIZE)
 	{
 		printf("** the messaging buffers are not cache aligned.\n");
@@ -203,34 +210,7 @@ ssmp_mem_init_platf(int id, int num_ues)
 			continue;
 		}
 
-		sprintf(keyF, "/ssmp_core%03d", core);
-
-		int ssmpfd = shm_open(keyF, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG);
-		if (ssmpfd < 0)
-		{
-			if (errno != EEXIST)
-			{
-				perror("In shm_open");
-				exit(1);
-			}
-
-			ssmpfd = shm_open(keyF, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG);
-			if (ssmpfd<0)
-			{
-				perror("In shm_open");
-				exit(1);
-			}
-		}
-		else
-		{
-			if (ftruncate(ssmpfd, size) < 0)
-			{
-				perror("ftruncate failed\n");
-				exit(1);
-			}
-		}
-
-		ssmp_msg_t* tmp = (ssmp_msg_t*) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, ssmpfd, 0);
+		ssmp_msg_t* tmp = (ssmp_msg_t*) map[core];
 		if (tmp == NULL)
 		{
 			perror("tmp = NULL\n");
