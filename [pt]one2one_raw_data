@@ -1,0 +1,10 @@
+./threadone2one
+./threadone2one same-die 280.241
+./threadone2one same-mcm 490.887
+./threadone2one one-hop 574.703
+./threadone2one two-hop 856.062
+./one2one
+./one2one same-die 288.359
+./one2one same-mcm 494.938
+./one2one one-hop 599.685
+./one2one two-hop 966.997
