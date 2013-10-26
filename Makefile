@@ -6,7 +6,7 @@ PROF = prof
 CFLAGS = -O3 -Wall
 LDFLAGS = -lssmp -lm -lrt
 LDTFLAGS = -lssmpthread -lpthread -lm -lrt
-VER_FLAGS = -D_GNU_SOURCE
+VER_FLAGS = -D_GNU_SOURCE -DROUNDTRIP
 
 MEASUREMENTS = 1
 TARGET_ARCH = i386
@@ -14,7 +14,7 @@ TARGET_PLAT = generic
 
 ifeq ($(VERSION),DEBUG) 
 CFLAGS = -O0 -ggdb -Wall -g -fno-inline
-VER_FLAGS += -DDEBUG
+VER_FLAGS += -DDEBUG 
 endif
 
 UNAME := $(shell uname -n)
