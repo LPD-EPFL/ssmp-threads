@@ -6,6 +6,7 @@ do
 	echo $command
 	for core in 6 12 18 24 30 36 48
 	do
+			echo $core
 			$command -n $core -s $core  > tmp
 			if [ $? -eq 0 ] 
 			then
