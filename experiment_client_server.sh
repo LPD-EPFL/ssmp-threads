@@ -4,9 +4,9 @@ for command in "./client_server"
 do
 	echo "----------"
 	echo $command
-	for core in 12 18 24 30 36 48
+	for core in 6 #12 18 24 30 36 48
 	do
-		for dsl in $((core/1)) $((core/2)) $((core/3)) $((core/4)) $((core/5)) $((core/6))
+		for dsl in $((core/1)) $((core/2)) $((core/3)) #$((core/4)) $((core/5)) $((core/6))
 		do
 			echo $core $dsl
 			$command -n $core -s $dsl  > tmp

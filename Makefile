@@ -6,7 +6,7 @@ PROF = prof
 CFLAGS = -O3 -Wall
 LDFLAGS = -lssmp -lm -lrt
 LDTFLAGS = -lssmpthread -lpthread -lm -lrt
-VER_FLAGS = -D_GNU_SOURCE -DROUNDTRIP
+VER_FLAGS = -D_GNU_SOURCE 
 
 MEASUREMENTS = 1
 TARGET_ARCH = i386
