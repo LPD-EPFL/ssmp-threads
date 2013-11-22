@@ -242,7 +242,6 @@ ssmp_term_platf()
 	if (ssmp_id_ == 0 && shm_unlink(SSMP_MEM_NAME) < 0)
 	{
 		shm_unlink("/ssmp_mem");
-		free(map);
 	}
 	char keyF[100];
 	sprintf(keyF, "/ssmp_core%03d", ssmp_id_);
