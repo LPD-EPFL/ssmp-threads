@@ -89,7 +89,7 @@ endif
 
 PLAT_C = $(SRC)/platform/$(TARGET_PLAT)
 
-all: one2one one2one_rt client_server client_server_rt bank one2one_big barrier_test cs threadone2one mainthread threadbarrier_test threadclient_server
+all: one2one one2one_rt client_server client_server_rt bank one2one_big barrier_test cs threadone2one mainthread threadbarrier_test threadclient_server threadbank
 
 default: one2one
 
@@ -173,6 +173,12 @@ bank: libssmp.a bank.o $(INCLUDE)/common.h
 bank.o:	$(BENCH)/bank.c
 	$(CC) $(VER_FLAGS) -c $(BENCH)/bank.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
+threadbank: libssmpthread.a threadbank.o $(INCLUDE)/threadcommon.h
+	$(CC) $(VER_FLAGS) -o threadbank threadbank.o $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./ 
+
+threadbank.o:	$(BENCH)/threadbank.c
+	$(CC) $(VER_FLAGS) -c $(BENCH)/threadbank.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+
 mainthread:	libssmpthread.a mainthread.o
 	$(CC) $(VER_FLAGS) -o mainthread mainthread.o libssmpthread.a $(CFLAGS) $(LDTFLAGS) -I./$(INCLUDE) -L./
 
@@ -228,4 +234,4 @@ cs.o: $(BENCH)/cs.c $(SRC)/ssmp.c
 		$(CC) $(VER_FLAGS) -c $(BENCH)/cs.c $(CFLAGS) -I./$(INCLUDE) -L./ 
 
 clean:
-	rm -f *.o *.a client_server client_server_rt one2one one2one_rt bank barrier_test one2one_big l1_spil cs mainthread threadone2one threadbarrier_test threadclient_server
+	rm -f *.o *.a client_server client_server_rt one2one one2one_rt bank barrier_test one2one_big l1_spil cs mainthread threadone2one threadbarrier_test threadclient_server threadbank
