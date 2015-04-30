@@ -80,5 +80,4 @@ Limitations:
 ------------
 
 1. ssmp mostly aims at cache-line-sized messages and, for simplicity, it does not implement messaging queues. In other words, every process is allowed to send only a single pending message to each other process.
-2. ssmp works with process, not threads.
-3. the ssmp_[send/recv_from]_big functions are currently not implemented for the Tilera platforms.
+2. the ssmp_[send/recv_from]_big functions are currently not implemented for the Tilera platforms.
