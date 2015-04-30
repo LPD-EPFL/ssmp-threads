@@ -1,5 +1,7 @@
 ssmp is a highly optimized message passing library built on top of the cache-coherence protocols of shared memory processors. It exports functions for sending and receiving cache-line-sized (or bigger) messages. 
 
+ssmp was ported to ptrheads by David Cervini <cervini.david@gmail.com> in a semester project supervised by Vasileios Trigonakis <vasileios.trigonakis@epfl.ch>.
+
 * Website             : http://lpd.epfl.ch/site/ssmp
 * Author              : Vasileios Trigonakis <vasileios.trigonakis@epfl.ch>
 * Related Publications: ssmp was implemented for TM2C (http://lpd.epfl.ch/site/ssync) and is now a part of the SSYNC synchronization suite (http://lpd.epfl.ch/site/ssync)
